@@ -140,8 +140,8 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.8rem;
-            min-width: 1200px;
+            font-size: 0.78rem;
+            min-width: 1300px;
         }
         th {
             background: #f1f5f9;
@@ -155,7 +155,7 @@
             white-space: nowrap;
             cursor: pointer;
             user-select: none;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
         }
         th:hover {
             background: #e2e8f0;
@@ -166,7 +166,7 @@
             vertical-align: middle;
             max-width: 150px;
             word-break: break-word;
-            font-size: 0.75rem;
+            font-size: 0.72rem;
         }
         tr:hover td {
             background: #fafcff;
@@ -175,7 +175,7 @@
             display: inline-block;
             padding: 2px 10px;
             border-radius: 30px;
-            font-size: 0.65rem;
+            font-size: 0.6rem;
             font-weight: 600;
             white-space: nowrap;
         }
@@ -203,11 +203,15 @@
             background: #ede9fe;
             color: #5b21b6;
         }
+        .badge-europe {
+            background: #fce4ec;
+            color: #880e4f;
+        }
         .note-cell {
             max-width: 180px;
             white-space: pre-wrap;
             word-break: break-word;
-            font-size: 0.7rem;
+            font-size: 0.65rem;
         }
         .empty-state {
             padding: 40px 20px;
@@ -258,6 +262,10 @@
             font-size: 0.8rem;
             color: #475569;
             display: none;
+            text-align: left;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
         }
         .debug-info.show {
             display: block;
@@ -271,6 +279,13 @@
         }
         .loading.show {
             display: block;
+        }
+        .filter-info {
+            font-size: 0.7rem;
+            color: #64748b;
+            background: #f1f5f9;
+            padding: 4px 12px;
+            border-radius: 20px;
         }
         @media (max-width: 768px) {
             .filter-bar {
@@ -293,7 +308,10 @@
 <body>
     <div class="container">
         <h1>📊 Analisis Data Lelang</h1>
-        <div class="subtitle">Pengecekan Tahun dari 10 digit No.Rangka · Kesesuaian Tipe · Nama STNK vs BPKB · Status PT</div>
+        <div class="subtitle">
+            Pengecekan Tahun dari 10 digit No.Rangka · Kesesuaian Tipe (longgar) · Nama STNK vs BPKB · Status PT
+            <span class="filter-info">🌏 Hanya merk Asia (Jepang, China, Korea)</span>
+        </div>
 
         <!-- UPLOAD AREA -->
         <div class="upload-card" id="dropZone">
@@ -309,6 +327,7 @@
                 <span>📋 Total Data: <strong id="totalRows">0</strong></span>
                 <span>⚠️ Anomali: <strong id="anomaliCount">0</strong></span>
                 <span>📌 Grade A: <strong id="gradeACount">0</strong></span>
+                <span>🌏 Asia: <strong id="asiaCount">0</strong></span>
             </div>
             <div class="loading" id="loadingIndicator">⏳ Memproses data...</div>
             <div class="debug-info" id="debugInfo"></div>
@@ -336,6 +355,13 @@
                         <option value="anomali">⚠️ Anomali</option>
                     </select>
                 </label>
+                <label>🌏 Region:
+                    <select id="regionFilter">
+                        <option value="all">Semua</option>
+                        <option value="asia">Asia (Jepang/China/Korea)</option>
+                        <option value="nonasia">Non-Asia</option>
+                    </select>
+                </label>
                 <span style="font-size:0.7rem;color:#94a3b8;margin-left:auto;">Klik header untuk urutkan</span>
             </div>
             <div class="table-scroll" id="tableScroll">
@@ -344,6 +370,7 @@
                         <tr>
                             <th data-sort="lot">LOT</th>
                             <th data-sort="merk">Merk</th>
+                            <th data-sort="region">Region</th>
                             <th data-sort="modelDok">Model Dokumen</th>
                             <th data-sort="modelFisik">Model Fisik</th>
                             <th data-sort="tipeSama">Tipe Sama</th>
@@ -359,7 +386,7 @@
                     </thead>
                     <tbody id="tableBody">
                         <tr>
-                            <td colspan="13" class="empty-state">
+                            <td colspan="14" class="empty-state">
                                 <span class="icon">📂</span>
                                 Upload file Excel untuk memulai analisis
                             </td>
@@ -393,11 +420,13 @@
         const searchInput = document.getElementById('searchInput');
         const gradeFilter = document.getElementById('gradeFilter');
         const statusFilter = document.getElementById('statusFilter');
+        const regionFilter = document.getElementById('regionFilter');
         const tableBody = document.getElementById('tableBody');
         const tableHead = document.getElementById('tableHead');
         const totalRows = document.getElementById('totalRows');
         const anomaliCount = document.getElementById('anomaliCount');
         const gradeACount = document.getElementById('gradeACount');
+        const asiaCount = document.getElementById('asiaCount');
         const prevPageBtn = document.getElementById('prevPage');
         const nextPageBtn = document.getElementById('nextPage');
         const pageInfo = document.getElementById('pageInfo');
@@ -406,11 +435,56 @@
         let sortAsc = true;
 
         // ============================================================
-        // 2. FUNGSI ANALISIS
+        // 2. DATA MERK ASIA
+        // ============================================================
+        const ASIA_BRANDS = [
+            'TOYOTA', 'HONDA', 'NISSAN', 'MITSUBISHI', 'SUZUKI', 'DAIHATSU',
+            'MAZDA', 'SUBARU', 'ISUZU', 'HINO', 'LEXUS', 'INFINITI', 'ACURA',
+            'KIA', 'HYUNDAI', 'DAEWOO', 'SSANGYONG', 'KOMATSU', 'HITACHI',
+            'SANY', 'XCMG', 'LIUGONG', 'LIU GONG', 'FOTON', 'SINOTRUK',
+            'HOWO', 'SHANTUI', 'ZOOMLION', 'CHERY', 'WULING', 'MG',
+            'PROTON', 'PERODUA', 'YANMAR', 'KUBOTA', 'KOBELCO',
+            'FAW', 'DONGFENG', 'JCB', 'CATERPILLAR', 'VOLVO'
+        ];
+
+        // Merk Eropa/Amerika (akan di-exclude dari cek tahun rangka)
+        const EUROPE_BRANDS = [
+            'BMW', 'MERCEDES', 'MERCEDES BENZ', 'AUDI', 'VW', 'VOLKSWAGEN',
+            'PORSCHE', 'FORD', 'CHEVROLET', 'DODGE', 'CHRYSLER', 'JEEP',
+            'LAND ROVER', 'RANGE ROVER', 'JAGUAR', 'PEUGEOT', 'CITROEN',
+            'RENAULT', 'OPEL', 'FIAT', 'ALFA ROMEO', 'MASERATI', 'FERRARI',
+            'LAMBORGHINI', 'BENTLEY', 'ROLLS ROYCE', 'ASTON MARTIN',
+            'IVECO', 'MAN', 'SCANIA', 'VOLVO TRUCK', 'RENAULT TRUCK'
+        ];
+
+        function getRegion(merk) {
+            const upperMerk = (merk || '').toUpperCase().trim();
+            if (!upperMerk) return 'unknown';
+
+            for (let b of ASIA_BRANDS) {
+                if (upperMerk.includes(b) || b.includes(upperMerk)) {
+                    return 'asia';
+                }
+            }
+            for (let b of EUROPE_BRANDS) {
+                if (upperMerk.includes(b) || b.includes(upperMerk)) {
+                    return 'europe';
+                }
+            }
+            return 'other';
+        }
+
+        function isAsiaBrand(merk) {
+            return getRegion(merk) === 'asia';
+        }
+
+        // ============================================================
+        // 3. FUNGSI ANALISIS - PARSING TAHUN DARI RANGKA
         // ============================================================
         function parseYearFromRangka(rangka) {
             if (!rangka || typeof rangka !== 'string') return null;
             const clean = rangka.replace(/\s/g, '').toUpperCase();
+
             // Coba cari pola tahun 19xx atau 20xx
             const yearMatch = clean.match(/(19|20)\d{2}/);
             if (yearMatch) return parseInt(yearMatch[0]);
@@ -422,11 +496,62 @@
             if (!isNaN(num) && num >= 0 && num <= 99) {
                 return num > 30 ? 1900 + num : 2000 + num;
             }
+
+            // Coba cari digit di posisi 9-10 dari belakang (sering digunakan untuk tahun)
+            if (clean.length >= 10) {
+                const chars = clean.slice(-10);
+                // Coba ambil 2 digit dari posisi ke-3 dan ke-4 dari belakang
+                const tryYear = parseInt(chars.slice(2, 4));
+                if (!isNaN(tryYear) && tryYear >= 0 && tryYear <= 99) {
+                    return tryYear > 30 ? 1900 + tryYear : 2000 + tryYear;
+                }
+            }
+
             return null;
         }
 
+        // ============================================================
+        // 4. FUNGSI ANALISIS - TIPE LONGGAR
+        // ============================================================
+        function isTipeSamaLonggar(modelDok, modelFisik) {
+            if (!modelDok || !modelFisik) return false;
+            const dok = modelDok.toUpperCase().replace(/\s/g, '');
+            const fisik = modelFisik.toUpperCase().replace(/\s/g, '');
+
+            // Jika salah satu kosong
+            if (!dok || !fisik) return false;
+
+            // Cek apakah semua huruf di fisik ada di dokumen (urutan tidak penting)
+            let dokChars = dok.split('');
+            let fisikChars = fisik.split('');
+
+            // Filter hanya huruf dan angka
+            dokChars = dokChars.filter(c => c.match(/[A-Z0-9]/));
+            fisikChars = fisikChars.filter(c => c.match(/[A-Z0-9]/));
+
+            if (fisikChars.length === 0) return false;
+
+            // Hitung berapa banyak karakter fisik yang ada di dokumen
+            let matchCount = 0;
+            let dokCopy = [...dokChars];
+            for (let char of fisikChars) {
+                const idx = dokCopy.indexOf(char);
+                if (idx !== -1) {
+                    matchCount++;
+                    dokCopy.splice(idx, 1);
+                }
+            }
+
+            // Jika lebih dari 70% karakter fisik cocok, anggap sama
+            const ratio = matchCount / fisikChars.length;
+            return ratio >= 0.6;
+        }
+
+        // ============================================================
+        // 5. FUNGSI ANALISIS UTAMA
+        // ============================================================
         function analyzeRow(row) {
-            const merk = row['MERK'] || '';
+            const merk = String(row['MERK'] || '').trim();
             const modelDok = String(row['MODEL DOKUMEN'] || '').trim();
             const modelFisik = String(row['MODEL FISIK'] || '').trim();
             const tahun = row['TAHUN'] ? parseInt(row['TAHUN']) : null;
@@ -436,28 +561,53 @@
             const note1 = String(row['NOTE 1'] || '').trim();
             const grade = String(row['CAR GRADE'] || '').trim();
 
-            const tahunRangka = parseYearFromRangka(noRangka);
-            const tipeSama = modelDok.toLowerCase() === modelFisik.toLowerCase() && modelDok.length > 0;
+            const region = getRegion(merk);
+            const isAsia = region === 'asia';
+
+            // Parsing tahun rangka hanya untuk merk Asia
+            let tahunRangka = null;
+            let tahunValid = true;
+            if (isAsia) {
+                tahunRangka = parseYearFromRangka(noRangka);
+                if (tahun && tahunRangka && Math.abs(tahun - tahunRangka) > 2) {
+                    tahunValid = false;
+                }
+            } else {
+                // Untuk non-Asia, anggap valid
+                tahunValid = true;
+            }
+
+            // Cek tipe dengan metode longgar
+            const tipeSama = isTipeSamaLonggar(modelDok, modelFisik);
+
+            // Nama STNK vs BPKB
             const namaSama = namaSTNK.toLowerCase() === namaBPKB.toLowerCase() && namaSTNK.length > 0;
 
+            // AN PT
             const anPT = namaSTNK.toUpperCase().startsWith('PT') ||
                 namaBPKB.toUpperCase().startsWith('PT') ||
                 note1.toUpperCase().includes('AN PT');
 
+            // Anomali
             let anomali = false;
             let reasons = [];
-            if (tahun && tahunRangka && Math.abs(tahun - tahunRangka) > 2) {
+
+            // Hanya cek tahun untuk merk Asia
+            if (isAsia && !tahunValid) {
                 anomali = true;
                 reasons.push(`Tahun mismatch (${tahun} vs ${tahunRangka})`);
             }
+
             if (!tipeSama && modelDok && modelFisik) {
                 anomali = true;
                 reasons.push('Tipe berbeda');
             }
+
             if (!namaSama && namaSTNK && namaBPKB) {
                 anomali = true;
                 reasons.push('Nama STNK ≠ BPKB');
             }
+
             if (note1.toUpperCase().includes('AN PT') && !namaSTNK.toUpperCase().startsWith('PT') && !namaBPKB.toUpperCase()
                 .startsWith('PT')) {
                 anomali = true;
@@ -474,7 +624,10 @@
                 namaBPKB,
                 note1,
                 grade,
+                region,
+                isAsia,
                 tahunRangka,
+                tahunValid,
                 tipeSama,
                 namaSama,
                 anPT,
@@ -484,7 +637,7 @@
         }
 
         // ============================================================
-        // 3. PROSES EXCEL - PERBAIKAN UTAMA
+        // 6. PROSES EXCEL
         // ============================================================
         function processExcelData(jsonData) {
             if (!jsonData || jsonData.length < 2) {
@@ -496,10 +649,8 @@
             console.log('Header:', jsonData[0]);
 
             const header = jsonData[0];
-            // Bersihkan header - trim dan uppercase
             const cleanHeader = header.map(h => String(h || '').trim());
 
-            // Cari index kolom penting
             const findCol = (keywords) => {
                 for (let k of keywords) {
                     const idx = cleanHeader.findIndex(h => h.toUpperCase() === k.toUpperCase() || h.toUpperCase().includes(k
@@ -524,48 +675,24 @@
 
             console.log('Kolom mapping:', colMap);
 
-            // Cek apakah mapping berhasil
-            const hasData = Object.values(colMap).some(idx => idx !== -1);
-            if (!hasData) {
-                console.warn('Tidak ada kolom yang cocok, coba alternatif...');
-                // Alternatif: coba cari kolom dengan nama mirip
-                for (let i = 0; i < cleanHeader.length; i++) {
-                    const h = cleanHeader[i].toUpperCase();
-                    if (h.includes('MERK') || h.includes('BRAND')) colMap.merk = i;
-                    if (h.includes('LOT') || h.includes('NO')) colMap.lot = i;
-                    if (h.includes('MODEL') && h.includes('DOK')) colMap.modelDok = i;
-                    if (h.includes('MODEL') && h.includes('FISIK')) colMap.modelFisik = i;
-                    if (h.includes('TAHUN') || h.includes('YEAR')) colMap.tahun = i;
-                    if (h.includes('RANGKA') || h.includes('FRAME')) colMap.noRangka = i;
-                    if (h.includes('STNK') && h.includes('NAMA')) colMap.namaSTNK = i;
-                    if (h.includes('BPKB') && h.includes('NAMA')) colMap.namaBPKB = i;
-                    if (h.includes('NOTE')) colMap.note1 = i;
-                    if (h.includes('GRADE')) colMap.grade = i;
-                }
-                console.log('Alternatif mapping:', colMap);
-            }
-
             const rows = [];
             for (let i = 1; i < jsonData.length; i++) {
                 const row = jsonData[i];
                 if (!row || row.length === 0) continue;
-                // Skip jika semua cell kosong
                 if (row.every(cell => !cell || String(cell).trim() === '')) continue;
 
                 const obj = {};
-                // Isi data berdasarkan mapping
                 if (colMap.lot !== -1) obj['LOT NO'] = row[colMap.lot] || '';
-                if (colMap.merk !== -1) obj['MERK'] = row[colMap.merk] || '';
-                if (colMap.modelDok !== -1) obj['MODEL DOKUMEN'] = row[colMap.modelDok] || '';
-                if (colMap.modelFisik !== -1) obj['MODEL FISIK'] = row[colMap.modelFisik] || '';
+                if (colMap.merk !== -1) obj['MERK'] = String(row[colMap.merk] || '').trim();
+                if (colMap.modelDok !== -1) obj['MODEL DOKUMEN'] = String(row[colMap.modelDok] || '').trim();
+                if (colMap.modelFisik !== -1) obj['MODEL FISIK'] = String(row[colMap.modelFisik] || '').trim();
                 if (colMap.tahun !== -1) obj['TAHUN'] = row[colMap.tahun] || '';
-                if (colMap.noRangka !== -1) obj['NO.RANGKA'] = row[colMap.noRangka] || '';
-                if (colMap.namaSTNK !== -1) obj['NAMA STNK'] = row[colMap.namaSTNK] || '';
-                if (colMap.namaBPKB !== -1) obj['Nama BPKB'] = row[colMap.namaBPKB] || '';
-                if (colMap.note1 !== -1) obj['NOTE 1'] = row[colMap.note1] || '';
-                if (colMap.grade !== -1) obj['CAR GRADE'] = row[colMap.grade] || '';
+                if (colMap.noRangka !== -1) obj['NO.RANGKA'] = String(row[colMap.noRangka] || '').trim();
+                if (colMap.namaSTNK !== -1) obj['NAMA STNK'] = String(row[colMap.namaSTNK] || '').trim();
+                if (colMap.namaBPKB !== -1) obj['Nama BPKB'] = String(row[colMap.namaBPKB] || '').trim();
+                if (colMap.note1 !== -1) obj['NOTE 1'] = String(row[colMap.note1] || '').trim();
+                if (colMap.grade !== -1) obj['CAR GRADE'] = String(row[colMap.grade] || '').trim();
 
-                // Cek apakah ada data minimal
                 if (obj['MERK'] || obj['LOT NO'] || obj['NO.RANGKA'] || obj['MODEL DOKUMEN']) {
                     rows.push(obj);
                 }
@@ -579,16 +706,17 @@
         }
 
         // ============================================================
-        // 4. RENDER
+        // 7. RENDER
         // ============================================================
         function renderTable(data) {
-            // Filter
             const search = searchInput.value.toLowerCase().trim();
             const gradeVal = gradeFilter.value;
             const statusVal = statusFilter.value;
+            const regionVal = regionFilter.value;
 
             filteredData = data.filter(row => {
                 const a = row._analysis || {};
+
                 // Search
                 const searchable = [
                     row['MERK'] || '',
@@ -602,6 +730,10 @@
                 if (gradeVal !== 'all' && a.grade !== gradeVal) return false;
                 if (statusVal === 'ok' && a.anomali) return false;
                 if (statusVal === 'anomali' && !a.anomali) return false;
+
+                if (regionVal === 'asia' && !a.isAsia) return false;
+                if (regionVal === 'nonasia' && a.isAsia) return false;
+
                 return true;
             });
 
@@ -616,6 +748,10 @@
                         case 'lot':
                             va = parseInt(a['LOT NO']) || 0;
                             vb = parseInt(b['LOT NO']) || 0;
+                            break;
+                        case 'region':
+                            va = ka.region || '';
+                            vb = kb.region || '';
                             break;
                         case 'merk':
                             va = (a['MERK'] || '').toLowerCase();
@@ -681,6 +817,8 @@
             anomaliCount.textContent = anom;
             const gradeA = filteredData.filter(r => r._analysis && r._analysis.grade === 'A').length;
             gradeACount.textContent = gradeA;
+            const asia = filteredData.filter(r => r._analysis && r._analysis.isAsia).length;
+            asiaCount.textContent = asia;
 
             // Pagination
             const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
@@ -692,7 +830,7 @@
             if (pageData.length === 0) {
                 tableBody.innerHTML = `
                     <tr>
-                        <td colspan="13" class="empty-state">
+                        <td colspan="14" class="empty-state">
                             <span class="icon">${filteredData.length === 0 && allData.length > 0 ? '🔍' : '📂'}</span>
                             ${filteredData.length === 0 && allData.length > 0 ? 'Tidak ada data yang cocok dengan filter' : 'Upload file Excel untuk memulai analisis'}
                         </td>
@@ -712,6 +850,12 @@
                     const namaBPKB = row['Nama BPKB'] || '-';
                     const note1 = row['NOTE 1'] || '-';
                     const grade = a.grade || '-';
+
+                    const regionLabel = a.region === 'asia' ? '🌏 Asia' :
+                        a.region === 'europe' ? '🌍 Eropa' : '🌎 Lainnya';
+                    const regionBadge = a.isAsia ?
+                        '<span class="badge badge-info">🌏 Asia</span>' :
+                        '<span class="badge badge-europe">🌍 Non-Asia</span>';
 
                     const tipeBadge = a.tipeSama ?
                         '<span class="badge badge-success">✅ Sama</span>' :
@@ -734,16 +878,23 @@
                         gradeBadge = `<span class="badge ${cls}">${grade}</span>`;
                     }
 
+                    // Tahun rangka validasi (hanya untuk Asia)
+                    let tahunRangkaDisplay = tahunRangka;
+                    if (a.isAsia && a.tahunRangka && a.tahun && Math.abs(a.tahun - a.tahunRangka) > 2) {
+                        tahunRangkaDisplay = `<span style="color:#dc2626;font-weight:600;">${tahunRangka} ⚠️</span>`;
+                    }
+
                     html += `<tr>
                         <td><strong>${lot}</strong></td>
                         <td>${merk}</td>
-                        <td style="max-width:150px;font-size:0.7rem;">${modelDok}</td>
-                        <td style="max-width:150px;font-size:0.7rem;">${modelFisik}</td>
+                        <td>${regionBadge}</td>
+                        <td style="max-width:150px;font-size:0.65rem;">${modelDok}</td>
+                        <td style="max-width:150px;font-size:0.65rem;">${modelFisik}</td>
                         <td>${tipeBadge}</td>
                         <td>${tahun}</td>
-                        <td>${tahunRangka}</td>
-                        <td style="max-width:120px;font-size:0.7rem;">${namaSTNK}</td>
-                        <td style="max-width:120px;font-size:0.7rem;">${namaBPKB}</td>
+                        <td>${tahunRangkaDisplay}</td>
+                        <td style="max-width:120px;font-size:0.65rem;">${namaSTNK}</td>
+                        <td style="max-width:120px;font-size:0.65rem;">${namaBPKB}</td>
                         <td>${namaBadge}</td>
                         <td>${ptBadge}</td>
                         <td class="note-cell">${note1}</td>
@@ -759,12 +910,11 @@
         }
 
         // ============================================================
-        // 5. LOAD FILE - DENGAN DEBUG
+        // 8. LOAD FILE
         // ============================================================
         function loadFile(file) {
             if (!file) return;
 
-            // Reset
             allData = [];
             filteredData = [];
             currentPage = 1;
@@ -779,12 +929,10 @@
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, { type: 'array' });
 
-                    // Ambil sheet pertama
                     const firstSheetName = workbook.SheetNames[0];
                     const firstSheet = workbook.Sheets[firstSheetName];
                     const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
 
-                    // Debug info
                     let debugMsg = `📊 Sheet: ${firstSheetName}\n`;
                     debugMsg += `📋 Total baris: ${jsonData.length}\n`;
                     if (jsonData.length > 0) {
@@ -801,8 +949,8 @@
                     debugMsg += `✅ Data terproses: ${rawData.length} baris\n`;
 
                     if (rawData.length === 0) {
-                        debugMsg += `⚠️ Tidak ada data yang bisa diproses. Periksa format kolom.\n`;
-                        debugMsg += `Kolom yang dibutuhkan: MERK, MODEL DOKUMEN, MODEL FISIK, TAHUN, NO.RANGKA, NAMA STNK, Nama BPKB, NOTE 1, CAR GRADE\n`;
+                        debugMsg += `⚠️ Tidak ada data yang bisa diproses.\n`;
+                        debugMsg += `Kolom yang dibutuhkan: MERK, MODEL DOKUMEN, MODEL FISIK, TAHUN, NO.RANGKA, NAMA STNK, Nama BPKB\n`;
                         debugInfo.textContent = debugMsg;
                         debugInfo.classList.add('show');
                         loadingIndicator.classList.remove('show');
@@ -815,7 +963,11 @@
                         return row;
                     });
 
-                    debugMsg += `✅ Analisis selesai. Total data: ${allData.length}`;
+                    const asiaCount = allData.filter(r => r._analysis.isAsia).length;
+                    debugMsg += `✅ Analisis selesai.\n`;
+                    debugMsg += `🌏 Merk Asia: ${asiaCount} unit\n`;
+                    debugMsg += `🌍 Non-Asia: ${allData.length - asiaCount} unit`;
+
                     debugInfo.textContent = debugMsg;
                     debugInfo.classList.add('show');
 
@@ -840,16 +992,14 @@
         }
 
         // ============================================================
-        // 6. EVENT LISTENERS
+        // 9. EVENT LISTENERS
         // ============================================================
 
-        // File input
         fileInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) loadFile(file);
         });
 
-        // Drag & Drop
         dropZone.addEventListener('dragover', function(e) {
             e.preventDefault();
             this.classList.add('dragover');
@@ -868,7 +1018,6 @@
                 const file = files[0];
                 if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
                     loadFile(file);
-                    // Sync with input
                     const dt = new DataTransfer();
                     dt.items.add(file);
                     fileInput.files = dt.files;
@@ -878,14 +1027,12 @@
             }
         });
 
-        // Click dropzone to trigger file input
         dropZone.addEventListener('click', function(e) {
             if (e.target.tagName !== 'LABEL' && e.target.tagName !== 'INPUT') {
                 fileInput.click();
             }
         });
 
-        // Filter
         searchInput.addEventListener('input', function() {
             currentPage = 1;
             renderTable(allData);
@@ -901,7 +1048,11 @@
             renderTable(allData);
         });
 
-        // Sorting
+        regionFilter.addEventListener('change', function() {
+            currentPage = 1;
+            renderTable(allData);
+        });
+
         tableHead.addEventListener('click', function(e) {
             const th = e.target.closest('th');
             if (!th) return;
@@ -917,7 +1068,6 @@
             renderTable(allData);
         });
 
-        // Pagination
         prevPageBtn.addEventListener('click', function() {
             if (currentPage > 1) {
                 currentPage--;
@@ -934,12 +1084,14 @@
         });
 
         // ============================================================
-        // 7. INISIALISASI
+        // 10. INISIALISASI
         // ============================================================
         renderTable([]);
         console.log('📊 Analisis Data Lelang siap digunakan.');
-        console.log('💡 Upload file Excel dengan drag & drop atau klik tombol "Pilih File Excel"');
-        console.log('📌 Kolom yang dibutuhkan: MERK, MODEL DOKUMEN, MODEL FISIK, TAHUN, NO.RANGKA, NAMA STNK, Nama BPKB, NOTE 1, CAR GRADE');
+        console.log('📌 Perubahan:');
+        console.log('  - Filter merk Asia (Jepang/China/Korea) untuk cek tahun rangka');
+        console.log('  - Pengecekan tipe lebih longgar (70% karakter cocok)');
+        console.log('  - Merk non-Asia tidak dicek tahun rangka');
     </script>
 </body>
 </html>
