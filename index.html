@@ -19,7 +19,7 @@
             color: #1e293b;
         }
         .container {
-            max-width: 1400px;
+            max-width: 1500px;
             margin: 0 auto;
         }
         h1 {
@@ -140,8 +140,8 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.78rem;
-            min-width: 1300px;
+            font-size: 0.75rem;
+            min-width: 1500px;
         }
         th {
             background: #f1f5f9;
@@ -155,18 +155,18 @@
             white-space: nowrap;
             cursor: pointer;
             user-select: none;
-            font-size: 0.7rem;
+            font-size: 0.68rem;
         }
         th:hover {
             background: #e2e8f0;
         }
         td {
-            padding: 6px 8px;
+            padding: 5px 6px;
             border-bottom: 1px solid #f1f5f9;
             vertical-align: middle;
-            max-width: 150px;
+            max-width: 130px;
             word-break: break-word;
-            font-size: 0.72rem;
+            font-size: 0.68rem;
         }
         tr:hover td {
             background: #fafcff;
@@ -207,11 +207,15 @@
             background: #fce4ec;
             color: #880e4f;
         }
+        .badge-nopol {
+            background: #c7d2fe;
+            color: #3730a3;
+        }
         .note-cell {
-            max-width: 180px;
+            max-width: 150px;
             white-space: pre-wrap;
             word-break: break-word;
-            font-size: 0.65rem;
+            font-size: 0.6rem;
         }
         .empty-state {
             padding: 40px 20px;
@@ -286,6 +290,16 @@
             background: #f1f5f9;
             padding: 4px 12px;
             border-radius: 20px;
+        }
+        .nopol-cell {
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+            font-size: 0.7rem;
+            color: #1e40af;
+            background: #eff6ff;
+            padding: 2px 8px;
+            border-radius: 4px;
+            display: inline-block;
         }
         @media (max-width: 768px) {
             .filter-bar {
@@ -369,6 +383,7 @@
                     <thead id="tableHead">
                         <tr>
                             <th data-sort="lot">LOT</th>
+                            <th data-sort="nopol">No. Polisi</th>
                             <th data-sort="merk">Merk</th>
                             <th data-sort="region">Region</th>
                             <th data-sort="modelDok">Model Dokumen</th>
@@ -386,7 +401,7 @@
                     </thead>
                     <tbody id="tableBody">
                         <tr>
-                            <td colspan="14" class="empty-state">
+                            <td colspan="15" class="empty-state">
                                 <span class="icon">📂</span>
                                 Upload file Excel untuk memulai analisis
                             </td>
@@ -447,7 +462,6 @@
             'FAW', 'DONGFENG', 'JCB', 'CATERPILLAR', 'VOLVO'
         ];
 
-        // Merk Eropa/Amerika (akan di-exclude dari cek tahun rangka)
         const EUROPE_BRANDS = [
             'BMW', 'MERCEDES', 'MERCEDES BENZ', 'AUDI', 'VW', 'VOLKSWAGEN',
             'PORSCHE', 'FORD', 'CHEVROLET', 'DODGE', 'CHRYSLER', 'JEEP',
@@ -485,11 +499,9 @@
             if (!rangka || typeof rangka !== 'string') return null;
             const clean = rangka.replace(/\s/g, '').toUpperCase();
 
-            // Coba cari pola tahun 19xx atau 20xx
             const yearMatch = clean.match(/(19|20)\d{2}/);
             if (yearMatch) return parseInt(yearMatch[0]);
 
-            // Fallback: cari 2 digit di 10 karakter terakhir
             const last10 = clean.slice(-10);
             const twoDigit = last10.slice(-2);
             const num = parseInt(twoDigit);
@@ -497,10 +509,8 @@
                 return num > 30 ? 1900 + num : 2000 + num;
             }
 
-            // Coba cari digit di posisi 9-10 dari belakang (sering digunakan untuk tahun)
             if (clean.length >= 10) {
                 const chars = clean.slice(-10);
-                // Coba ambil 2 digit dari posisi ke-3 dan ke-4 dari belakang
                 const tryYear = parseInt(chars.slice(2, 4));
                 if (!isNaN(tryYear) && tryYear >= 0 && tryYear <= 99) {
                     return tryYear > 30 ? 1900 + tryYear : 2000 + tryYear;
@@ -518,20 +528,16 @@
             const dok = modelDok.toUpperCase().replace(/\s/g, '');
             const fisik = modelFisik.toUpperCase().replace(/\s/g, '');
 
-            // Jika salah satu kosong
             if (!dok || !fisik) return false;
 
-            // Cek apakah semua huruf di fisik ada di dokumen (urutan tidak penting)
             let dokChars = dok.split('');
             let fisikChars = fisik.split('');
 
-            // Filter hanya huruf dan angka
             dokChars = dokChars.filter(c => c.match(/[A-Z0-9]/));
             fisikChars = fisikChars.filter(c => c.match(/[A-Z0-9]/));
 
             if (fisikChars.length === 0) return false;
 
-            // Hitung berapa banyak karakter fisik yang ada di dokumen
             let matchCount = 0;
             let dokCopy = [...dokChars];
             for (let char of fisikChars) {
@@ -542,7 +548,6 @@
                 }
             }
 
-            // Jika lebih dari 70% karakter fisik cocok, anggap sama
             const ratio = matchCount / fisikChars.length;
             return ratio >= 0.6;
         }
@@ -556,6 +561,7 @@
             const modelFisik = String(row['MODEL FISIK'] || '').trim();
             const tahun = row['TAHUN'] ? parseInt(row['TAHUN']) : null;
             const noRangka = String(row['NO.RANGKA'] || '').trim();
+            const nopol = String(row['NO POL'] || row['NO POLISI'] || '').trim();
             const namaSTNK = String(row['NAMA STNK'] || '').trim();
             const namaBPKB = String(row['Nama BPKB'] || '').trim();
             const note1 = String(row['NOTE 1'] || '').trim();
@@ -564,7 +570,6 @@
             const region = getRegion(merk);
             const isAsia = region === 'asia';
 
-            // Parsing tahun rangka hanya untuk merk Asia
             let tahunRangka = null;
             let tahunValid = true;
             if (isAsia) {
@@ -573,26 +578,19 @@
                     tahunValid = false;
                 }
             } else {
-                // Untuk non-Asia, anggap valid
                 tahunValid = true;
             }
 
-            // Cek tipe dengan metode longgar
             const tipeSama = isTipeSamaLonggar(modelDok, modelFisik);
-
-            // Nama STNK vs BPKB
             const namaSama = namaSTNK.toLowerCase() === namaBPKB.toLowerCase() && namaSTNK.length > 0;
 
-            // AN PT
             const anPT = namaSTNK.toUpperCase().startsWith('PT') ||
                 namaBPKB.toUpperCase().startsWith('PT') ||
                 note1.toUpperCase().includes('AN PT');
 
-            // Anomali
             let anomali = false;
             let reasons = [];
 
-            // Hanya cek tahun untuk merk Asia
             if (isAsia && !tahunValid) {
                 anomali = true;
                 reasons.push(`Tahun mismatch (${tahun} vs ${tahunRangka})`);
@@ -620,6 +618,7 @@
                 modelFisik,
                 tahun,
                 noRangka,
+                nopol,
                 namaSTNK,
                 namaBPKB,
                 note1,
@@ -667,6 +666,7 @@
                 modelFisik: findCol(['MODEL FISIK']),
                 tahun: findCol(['TAHUN']),
                 noRangka: findCol(['NO.RANGKA', 'NO RANGKA']),
+                nopol: findCol(['NO POL', 'NO POLISI', 'NOPOL']),
                 namaSTNK: findCol(['NAMA STNK', 'NAMA STNK']),
                 namaBPKB: findCol(['Nama BPKB', 'NAMA BPKB']),
                 note1: findCol(['NOTE 1', 'NOTE']),
@@ -688,6 +688,7 @@
                 if (colMap.modelFisik !== -1) obj['MODEL FISIK'] = String(row[colMap.modelFisik] || '').trim();
                 if (colMap.tahun !== -1) obj['TAHUN'] = row[colMap.tahun] || '';
                 if (colMap.noRangka !== -1) obj['NO.RANGKA'] = String(row[colMap.noRangka] || '').trim();
+                if (colMap.nopol !== -1) obj['NO POL'] = String(row[colMap.nopol] || '').trim();
                 if (colMap.namaSTNK !== -1) obj['NAMA STNK'] = String(row[colMap.namaSTNK] || '').trim();
                 if (colMap.namaBPKB !== -1) obj['Nama BPKB'] = String(row[colMap.namaBPKB] || '').trim();
                 if (colMap.note1 !== -1) obj['NOTE 1'] = String(row[colMap.note1] || '').trim();
@@ -717,13 +718,13 @@
             filteredData = data.filter(row => {
                 const a = row._analysis || {};
 
-                // Search
                 const searchable = [
                     row['MERK'] || '',
                     row['MODEL DOKUMEN'] || '',
                     row['MODEL FISIK'] || '',
                     row['NAMA STNK'] || '',
-                    row['Nama BPKB'] || ''
+                    row['Nama BPKB'] || '',
+                    row['NO POL'] || ''
                 ].join(' ').toLowerCase();
                 if (search && !searchable.includes(search)) return false;
 
@@ -737,7 +738,6 @@
                 return true;
             });
 
-            // Sort
             if (sortKey) {
                 filteredData.sort((a, b) => {
                     let va, vb;
@@ -748,6 +748,10 @@
                         case 'lot':
                             va = parseInt(a['LOT NO']) || 0;
                             vb = parseInt(b['LOT NO']) || 0;
+                            break;
+                        case 'nopol':
+                            va = (a['NO POL'] || '').toLowerCase();
+                            vb = (b['NO POL'] || '').toLowerCase();
                             break;
                         case 'region':
                             va = ka.region || '';
@@ -811,7 +815,6 @@
                 });
             }
 
-            // Stats
             totalRows.textContent = filteredData.length;
             const anom = filteredData.filter(r => r._analysis && r._analysis.anomali).length;
             anomaliCount.textContent = anom;
@@ -820,7 +823,6 @@
             const asia = filteredData.filter(r => r._analysis && r._analysis.isAsia).length;
             asiaCount.textContent = asia;
 
-            // Pagination
             const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
             if (currentPage > totalPages) currentPage = totalPages;
             const start = (currentPage - 1) * pageSize;
@@ -830,7 +832,7 @@
             if (pageData.length === 0) {
                 tableBody.innerHTML = `
                     <tr>
-                        <td colspan="14" class="empty-state">
+                        <td colspan="15" class="empty-state">
                             <span class="icon">${filteredData.length === 0 && allData.length > 0 ? '🔍' : '📂'}</span>
                             ${filteredData.length === 0 && allData.length > 0 ? 'Tidak ada data yang cocok dengan filter' : 'Upload file Excel untuk memulai analisis'}
                         </td>
@@ -841,6 +843,7 @@
                 pageData.forEach((row) => {
                     const a = row._analysis || {};
                     const lot = row['LOT NO'] || '-';
+                    const nopol = row['NO POL'] || '-';
                     const merk = row['MERK'] || '-';
                     const modelDok = row['MODEL DOKUMEN'] || '-';
                     const modelFisik = row['MODEL FISIK'] || '-';
@@ -851,8 +854,6 @@
                     const note1 = row['NOTE 1'] || '-';
                     const grade = a.grade || '-';
 
-                    const regionLabel = a.region === 'asia' ? '🌏 Asia' :
-                        a.region === 'europe' ? '🌍 Eropa' : '🌎 Lainnya';
                     const regionBadge = a.isAsia ?
                         '<span class="badge badge-info">🌏 Asia</span>' :
                         '<span class="badge badge-europe">🌍 Non-Asia</span>';
@@ -878,23 +879,27 @@
                         gradeBadge = `<span class="badge ${cls}">${grade}</span>`;
                     }
 
-                    // Tahun rangka validasi (hanya untuk Asia)
                     let tahunRangkaDisplay = tahunRangka;
                     if (a.isAsia && a.tahunRangka && a.tahun && Math.abs(a.tahun - a.tahunRangka) > 2) {
                         tahunRangkaDisplay = `<span style="color:#dc2626;font-weight:600;">${tahunRangka} ⚠️</span>`;
                     }
 
+                    const nopolDisplay = nopol !== '-' ?
+                        `<span class="nopol-cell">${nopol}</span>` :
+                        '-';
+
                     html += `<tr>
                         <td><strong>${lot}</strong></td>
+                        <td>${nopolDisplay}</td>
                         <td>${merk}</td>
                         <td>${regionBadge}</td>
-                        <td style="max-width:150px;font-size:0.65rem;">${modelDok}</td>
-                        <td style="max-width:150px;font-size:0.65rem;">${modelFisik}</td>
+                        <td style="max-width:130px;font-size:0.6rem;">${modelDok}</td>
+                        <td style="max-width:130px;font-size:0.6rem;">${modelFisik}</td>
                         <td>${tipeBadge}</td>
                         <td>${tahun}</td>
                         <td>${tahunRangkaDisplay}</td>
-                        <td style="max-width:120px;font-size:0.65rem;">${namaSTNK}</td>
-                        <td style="max-width:120px;font-size:0.65rem;">${namaBPKB}</td>
+                        <td style="max-width:100px;font-size:0.6rem;">${namaSTNK}</td>
+                        <td style="max-width:100px;font-size:0.6rem;">${namaBPKB}</td>
                         <td>${namaBadge}</td>
                         <td>${ptBadge}</td>
                         <td class="note-cell">${note1}</td>
@@ -950,7 +955,7 @@
 
                     if (rawData.length === 0) {
                         debugMsg += `⚠️ Tidak ada data yang bisa diproses.\n`;
-                        debugMsg += `Kolom yang dibutuhkan: MERK, MODEL DOKUMEN, MODEL FISIK, TAHUN, NO.RANGKA, NAMA STNK, Nama BPKB\n`;
+                        debugMsg += `Kolom yang dibutuhkan: MERK, MODEL DOKUMEN, MODEL FISIK, TAHUN, NO.RANGKA, NO POL, NAMA STNK, Nama BPKB\n`;
                         debugInfo.textContent = debugMsg;
                         debugInfo.classList.add('show');
                         loadingIndicator.classList.remove('show');
@@ -963,10 +968,10 @@
                         return row;
                     });
 
-                    const asiaCount = allData.filter(r => r._analysis.isAsia).length;
+                    const asiaCountData = allData.filter(r => r._analysis.isAsia).length;
                     debugMsg += `✅ Analisis selesai.\n`;
-                    debugMsg += `🌏 Merk Asia: ${asiaCount} unit\n`;
-                    debugMsg += `🌍 Non-Asia: ${allData.length - asiaCount} unit`;
+                    debugMsg += `🌏 Merk Asia: ${asiaCountData} unit\n`;
+                    debugMsg += `🌍 Non-Asia: ${allData.length - asiaCountData} unit`;
 
                     debugInfo.textContent = debugMsg;
                     debugInfo.classList.add('show');
@@ -1088,10 +1093,7 @@
         // ============================================================
         renderTable([]);
         console.log('📊 Analisis Data Lelang siap digunakan.');
-        console.log('📌 Perubahan:');
-        console.log('  - Filter merk Asia (Jepang/China/Korea) untuk cek tahun rangka');
-        console.log('  - Pengecekan tipe lebih longgar (70% karakter cocok)');
-        console.log('  - Merk non-Asia tidak dicek tahun rangka');
+        console.log('📌 Kolom baru: No. Polisi ditampilkan untuk setiap pengecekan');
     </script>
 </body>
 </html>
