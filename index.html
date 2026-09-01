@@ -4,7 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Analisis Data Lelang Mobil</title>
-    <!-- SheetJS untuk membaca file Excel -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js">
     </script>
     <style>
@@ -77,6 +76,12 @@
             color: #64748b;
             font-size: 0.9rem;
         }
+        .filename {
+            font-weight: 600;
+            color: #2563eb;
+            margin-top: 8px;
+            font-size: 1rem;
+        }
         .stats {
             display: flex;
             gap: 20px;
@@ -129,19 +134,19 @@
         }
         .table-scroll {
             overflow-x: auto;
-            max-height: 600px;
+            max-height: 650px;
             overflow-y: auto;
         }
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.82rem;
-            min-width: 1100px;
+            font-size: 0.8rem;
+            min-width: 1200px;
         }
         th {
             background: #f1f5f9;
             text-align: left;
-            padding: 12px 10px;
+            padding: 10px 8px;
             font-weight: 600;
             border-bottom: 2px solid #e2e8f0;
             position: sticky;
@@ -150,25 +155,27 @@
             white-space: nowrap;
             cursor: pointer;
             user-select: none;
+            font-size: 0.75rem;
         }
         th:hover {
             background: #e2e8f0;
         }
         td {
-            padding: 8px 10px;
+            padding: 6px 8px;
             border-bottom: 1px solid #f1f5f9;
             vertical-align: middle;
-            max-width: 180px;
+            max-width: 150px;
             word-break: break-word;
+            font-size: 0.75rem;
         }
         tr:hover td {
             background: #fafcff;
         }
         .badge {
             display: inline-block;
-            padding: 2px 12px;
+            padding: 2px 10px;
             border-radius: 30px;
-            font-size: 0.7rem;
+            font-size: 0.65rem;
             font-weight: 600;
             white-space: nowrap;
         }
@@ -197,15 +204,20 @@
             color: #5b21b6;
         }
         .note-cell {
-            max-width: 200px;
+            max-width: 180px;
             white-space: pre-wrap;
             word-break: break-word;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
         }
         .empty-state {
             padding: 40px 20px;
             text-align: center;
             color: #94a3b8;
+        }
+        .empty-state .icon {
+            font-size: 3rem;
+            display: block;
+            margin-bottom: 12px;
         }
         .pagination {
             padding: 14px 20px;
@@ -238,10 +250,27 @@
             font-size: 0.9rem;
             color: #475569;
         }
-        .filename {
-            font-weight: 600;
-            color: #2563eb;
-            margin-top: 8px;
+        .debug-info {
+            margin-top: 12px;
+            padding: 12px;
+            background: #f1f5f9;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            color: #475569;
+            display: none;
+        }
+        .debug-info.show {
+            display: block;
+        }
+        .loading {
+            display: none;
+            padding: 20px;
+            text-align: center;
+            color: #3b82f6;
+            font-weight: 500;
+        }
+        .loading.show {
+            display: block;
         }
         @media (max-width: 768px) {
             .filter-bar {
@@ -253,6 +282,10 @@
             }
             .upload-card {
                 padding: 16px;
+            }
+            .stats span {
+                font-size: 0.75rem;
+                padding: 4px 12px;
             }
         }
     </style>
@@ -277,6 +310,8 @@
                 <span>⚠️ Anomali: <strong id="anomaliCount">0</strong></span>
                 <span>📌 Grade A: <strong id="gradeACount">0</strong></span>
             </div>
+            <div class="loading" id="loadingIndicator">⏳ Memproses data...</div>
+            <div class="debug-info" id="debugInfo"></div>
         </div>
 
         <!-- TABLE -->
@@ -301,7 +336,7 @@
                         <option value="anomali">⚠️ Anomali</option>
                     </select>
                 </label>
-                <span style="font-size:0.75rem;color:#94a3b8;margin-left:auto;">Klik header untuk urutkan</span>
+                <span style="font-size:0.7rem;color:#94a3b8;margin-left:auto;">Klik header untuk urutkan</span>
             </div>
             <div class="table-scroll" id="tableScroll">
                 <table>
@@ -323,7 +358,12 @@
                         </tr>
                     </thead>
                     <tbody id="tableBody">
-                        <tr><td colspan="13" class="empty-state">⬆️ Upload file Excel untuk memulai analisis</td></tr>
+                        <tr>
+                            <td colspan="13" class="empty-state">
+                                <span class="icon">📂</span>
+                                Upload file Excel untuk memulai analisis
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -348,6 +388,8 @@
         const fileInput = document.getElementById('fileInput');
         const dropZone = document.getElementById('dropZone');
         const fileName = document.getElementById('fileName');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const debugInfo = document.getElementById('debugInfo');
         const searchInput = document.getElementById('searchInput');
         const gradeFilter = document.getElementById('gradeFilter');
         const statusFilter = document.getElementById('statusFilter');
@@ -369,16 +411,15 @@
         function parseYearFromRangka(rangka) {
             if (!rangka || typeof rangka !== 'string') return null;
             const clean = rangka.replace(/\s/g, '').toUpperCase();
-            // Coba cari pola tahun 19xx atau 20xx di 10 digit terakhir
-            const last10 = clean.slice(-10);
-            const yearMatch = last10.match(/(19|20)\d{2}/);
+            // Coba cari pola tahun 19xx atau 20xx
+            const yearMatch = clean.match(/(19|20)\d{2}/);
             if (yearMatch) return parseInt(yearMatch[0]);
 
-            // Fallback: ambil 2 digit terakhir dari 10 digit
+            // Fallback: cari 2 digit di 10 karakter terakhir
+            const last10 = clean.slice(-10);
             const twoDigit = last10.slice(-2);
             const num = parseInt(twoDigit);
             if (!isNaN(num) && num >= 0 && num <= 99) {
-                // asumsikan jika > 30 maka 1900-an, else 2000-an
                 return num > 30 ? 1900 + num : 2000 + num;
             }
             return null;
@@ -396,10 +437,9 @@
             const grade = String(row['CAR GRADE'] || '').trim();
 
             const tahunRangka = parseYearFromRangka(noRangka);
-            const tipeSama = modelDok.toLowerCase() === modelFisik.toLowerCase();
-            const namaSama = namaSTNK.toLowerCase() === namaBPKB.toLowerCase();
+            const tipeSama = modelDok.toLowerCase() === modelFisik.toLowerCase() && modelDok.length > 0;
+            const namaSama = namaSTNK.toLowerCase() === namaBPKB.toLowerCase() && namaSTNK.length > 0;
 
-            // AN PT: cek nama diawali PT atau note1 mengandung "AN PT"
             const anPT = namaSTNK.toUpperCase().startsWith('PT') ||
                 namaBPKB.toUpperCase().startsWith('PT') ||
                 note1.toUpperCase().includes('AN PT');
@@ -418,7 +458,6 @@
                 anomali = true;
                 reasons.push('Nama STNK ≠ BPKB');
             }
-            // Jika note1 mengandung "AN PT" tapi nama tidak PT
             if (note1.toUpperCase().includes('AN PT') && !namaSTNK.toUpperCase().startsWith('PT') && !namaBPKB.toUpperCase()
                 .startsWith('PT')) {
                 anomali = true;
@@ -445,20 +484,66 @@
         }
 
         // ============================================================
-        // 3. PROSES EXCEL
+        // 3. PROSES EXCEL - PERBAIKAN UTAMA
         // ============================================================
         function processExcelData(jsonData) {
-            if (!jsonData || jsonData.length < 2) return [];
+            if (!jsonData || jsonData.length < 2) {
+                console.log('Data kosong atau kurang dari 2 baris');
+                return [];
+            }
+
+            console.log('Jumlah baris data:', jsonData.length);
+            console.log('Header:', jsonData[0]);
 
             const header = jsonData[0];
-            // Bersihkan header
-            const cleanHeader = header.map(h => String(h || '').trim().toUpperCase());
+            // Bersihkan header - trim dan uppercase
+            const cleanHeader = header.map(h => String(h || '').trim());
 
-            // Mapping kolom
-            const getColIndex = (key) => {
-                const upperKey = key.toUpperCase();
-                return cleanHeader.findIndex(h => h === upperKey || h.includes(upperKey));
+            // Cari index kolom penting
+            const findCol = (keywords) => {
+                for (let k of keywords) {
+                    const idx = cleanHeader.findIndex(h => h.toUpperCase() === k.toUpperCase() || h.toUpperCase().includes(k
+                        .toUpperCase()));
+                    if (idx !== -1) return idx;
+                }
+                return -1;
             };
+
+            const colMap = {
+                lot: findCol(['LOT NO', 'LOT']),
+                merk: findCol(['MERK']),
+                modelDok: findCol(['MODEL DOKUMEN', 'MODEL DOK']),
+                modelFisik: findCol(['MODEL FISIK']),
+                tahun: findCol(['TAHUN']),
+                noRangka: findCol(['NO.RANGKA', 'NO RANGKA']),
+                namaSTNK: findCol(['NAMA STNK', 'NAMA STNK']),
+                namaBPKB: findCol(['Nama BPKB', 'NAMA BPKB']),
+                note1: findCol(['NOTE 1', 'NOTE']),
+                grade: findCol(['CAR GRADE', 'GRADE']),
+            };
+
+            console.log('Kolom mapping:', colMap);
+
+            // Cek apakah mapping berhasil
+            const hasData = Object.values(colMap).some(idx => idx !== -1);
+            if (!hasData) {
+                console.warn('Tidak ada kolom yang cocok, coba alternatif...');
+                // Alternatif: coba cari kolom dengan nama mirip
+                for (let i = 0; i < cleanHeader.length; i++) {
+                    const h = cleanHeader[i].toUpperCase();
+                    if (h.includes('MERK') || h.includes('BRAND')) colMap.merk = i;
+                    if (h.includes('LOT') || h.includes('NO')) colMap.lot = i;
+                    if (h.includes('MODEL') && h.includes('DOK')) colMap.modelDok = i;
+                    if (h.includes('MODEL') && h.includes('FISIK')) colMap.modelFisik = i;
+                    if (h.includes('TAHUN') || h.includes('YEAR')) colMap.tahun = i;
+                    if (h.includes('RANGKA') || h.includes('FRAME')) colMap.noRangka = i;
+                    if (h.includes('STNK') && h.includes('NAMA')) colMap.namaSTNK = i;
+                    if (h.includes('BPKB') && h.includes('NAMA')) colMap.namaBPKB = i;
+                    if (h.includes('NOTE')) colMap.note1 = i;
+                    if (h.includes('GRADE')) colMap.grade = i;
+                }
+                console.log('Alternatif mapping:', colMap);
+            }
 
             const rows = [];
             for (let i = 1; i < jsonData.length; i++) {
@@ -468,17 +553,27 @@
                 if (row.every(cell => !cell || String(cell).trim() === '')) continue;
 
                 const obj = {};
-                header.forEach((h, idx) => {
-                    if (h) {
-                        const key = String(h).trim();
-                        obj[key] = row[idx] !== undefined && row[idx] !== null ? row[idx] : '';
-                    }
-                });
+                // Isi data berdasarkan mapping
+                if (colMap.lot !== -1) obj['LOT NO'] = row[colMap.lot] || '';
+                if (colMap.merk !== -1) obj['MERK'] = row[colMap.merk] || '';
+                if (colMap.modelDok !== -1) obj['MODEL DOKUMEN'] = row[colMap.modelDok] || '';
+                if (colMap.modelFisik !== -1) obj['MODEL FISIK'] = row[colMap.modelFisik] || '';
+                if (colMap.tahun !== -1) obj['TAHUN'] = row[colMap.tahun] || '';
+                if (colMap.noRangka !== -1) obj['NO.RANGKA'] = row[colMap.noRangka] || '';
+                if (colMap.namaSTNK !== -1) obj['NAMA STNK'] = row[colMap.namaSTNK] || '';
+                if (colMap.namaBPKB !== -1) obj['Nama BPKB'] = row[colMap.namaBPKB] || '';
+                if (colMap.note1 !== -1) obj['NOTE 1'] = row[colMap.note1] || '';
+                if (colMap.grade !== -1) obj['CAR GRADE'] = row[colMap.grade] || '';
 
                 // Cek apakah ada data minimal
-                if (obj['MERK'] || obj['LOT NO'] || obj['NO.RANGKA']) {
+                if (obj['MERK'] || obj['LOT NO'] || obj['NO.RANGKA'] || obj['MODEL DOKUMEN']) {
                     rows.push(obj);
                 }
+            }
+
+            console.log('Jumlah data terproses:', rows.length);
+            if (rows.length > 0) {
+                console.log('Sample data:', rows[0]);
             }
             return rows;
         }
@@ -595,7 +690,14 @@
             const pageData = filteredData.slice(start, end);
 
             if (pageData.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="13" class="empty-state">${filteredData.length === 0 ? 'Tidak ada data yang cocok' : '⬆️ Upload file Excel untuk memulai analisis'}</td></tr>`;
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="13" class="empty-state">
+                            <span class="icon">${filteredData.length === 0 && allData.length > 0 ? '🔍' : '📂'}</span>
+                            ${filteredData.length === 0 && allData.length > 0 ? 'Tidak ada data yang cocok dengan filter' : 'Upload file Excel untuk memulai analisis'}
+                        </td>
+                    </tr>
+                `;
             } else {
                 let html = '';
                 pageData.forEach((row) => {
@@ -635,13 +737,13 @@
                     html += `<tr>
                         <td><strong>${lot}</strong></td>
                         <td>${merk}</td>
-                        <td style="max-width:150px;font-size:0.75rem;">${modelDok}</td>
-                        <td style="max-width:150px;font-size:0.75rem;">${modelFisik}</td>
+                        <td style="max-width:150px;font-size:0.7rem;">${modelDok}</td>
+                        <td style="max-width:150px;font-size:0.7rem;">${modelFisik}</td>
                         <td>${tipeBadge}</td>
                         <td>${tahun}</td>
                         <td>${tahunRangka}</td>
-                        <td style="max-width:120px;font-size:0.75rem;">${namaSTNK}</td>
-                        <td style="max-width:120px;font-size:0.75rem;">${namaBPKB}</td>
+                        <td style="max-width:120px;font-size:0.7rem;">${namaSTNK}</td>
+                        <td style="max-width:120px;font-size:0.7rem;">${namaBPKB}</td>
                         <td>${namaBadge}</td>
                         <td>${ptBadge}</td>
                         <td class="note-cell">${note1}</td>
@@ -657,11 +759,19 @@
         }
 
         // ============================================================
-        // 5. LOAD FILE
+        // 5. LOAD FILE - DENGAN DEBUG
         // ============================================================
         function loadFile(file) {
             if (!file) return;
+
+            // Reset
+            allData = [];
+            filteredData = [];
+            currentPage = 1;
+
             fileName.textContent = `📄 ${file.name}`;
+            loadingIndicator.classList.add('show');
+            debugInfo.classList.remove('show');
 
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -670,27 +780,62 @@
                     const workbook = XLSX.read(data, { type: 'array' });
 
                     // Ambil sheet pertama
-                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const firstSheetName = workbook.SheetNames[0];
+                    const firstSheet = workbook.Sheets[firstSheetName];
                     const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
+
+                    // Debug info
+                    let debugMsg = `📊 Sheet: ${firstSheetName}\n`;
+                    debugMsg += `📋 Total baris: ${jsonData.length}\n`;
+                    if (jsonData.length > 0) {
+                        debugMsg += `📌 Header: ${jsonData[0].slice(0, 15).join(' | ')}...\n`;
+                    }
 
                     if (jsonData.length < 2) {
                         alert('File tidak memiliki data yang cukup.');
+                        loadingIndicator.classList.remove('show');
                         return;
                     }
 
                     const rawData = processExcelData(jsonData);
+                    debugMsg += `✅ Data terproses: ${rawData.length} baris\n`;
+
+                    if (rawData.length === 0) {
+                        debugMsg += `⚠️ Tidak ada data yang bisa diproses. Periksa format kolom.\n`;
+                        debugMsg += `Kolom yang dibutuhkan: MERK, MODEL DOKUMEN, MODEL FISIK, TAHUN, NO.RANGKA, NAMA STNK, Nama BPKB, NOTE 1, CAR GRADE\n`;
+                        debugInfo.textContent = debugMsg;
+                        debugInfo.classList.add('show');
+                        loadingIndicator.classList.remove('show');
+                        renderTable([]);
+                        return;
+                    }
+
                     allData = rawData.map(row => {
                         row._analysis = analyzeRow(row);
                         return row;
                     });
 
-                    currentPage = 1;
+                    debugMsg += `✅ Analisis selesai. Total data: ${allData.length}`;
+                    debugInfo.textContent = debugMsg;
+                    debugInfo.classList.add('show');
+
+                    loadingIndicator.classList.remove('show');
                     renderTable(allData);
+
                 } catch (err) {
+                    loadingIndicator.classList.remove('show');
                     alert('Gagal membaca file: ' + err.message);
                     console.error(err);
+                    debugInfo.textContent = `❌ Error: ${err.message}`;
+                    debugInfo.classList.add('show');
                 }
             };
+
+            reader.onerror = function() {
+                loadingIndicator.classList.remove('show');
+                alert('Gagal membaca file.');
+            };
+
             reader.readAsArrayBuffer(file);
         }
 
@@ -792,8 +937,9 @@
         // 7. INISIALISASI
         // ============================================================
         renderTable([]);
-        console.log('📊 Analisis Data Lelang siap digunakan. Upload file Excel untuk memulai.');
-        console.log('💡 Tips: Drag & drop file .xlsx ke area upload atau klik tombol "Pilih File Excel"');
+        console.log('📊 Analisis Data Lelang siap digunakan.');
+        console.log('💡 Upload file Excel dengan drag & drop atau klik tombol "Pilih File Excel"');
+        console.log('📌 Kolom yang dibutuhkan: MERK, MODEL DOKUMEN, MODEL FISIK, TAHUN, NO.RANGKA, NAMA STNK, Nama BPKB, NOTE 1, CAR GRADE');
     </script>
 </body>
 </html>
