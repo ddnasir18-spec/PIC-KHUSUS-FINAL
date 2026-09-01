@@ -19,7 +19,7 @@
             color: #1e293b;
         }
         .container {
-            max-width: 1500px;
+            max-width: 1600px;
             margin: 0 auto;
         }
         h1 {
@@ -140,8 +140,8 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.75rem;
-            min-width: 1500px;
+            font-size: 0.73rem;
+            min-width: 1700px;
         }
         th {
             background: #f1f5f9;
@@ -155,7 +155,7 @@
             white-space: nowrap;
             cursor: pointer;
             user-select: none;
-            font-size: 0.68rem;
+            font-size: 0.65rem;
         }
         th:hover {
             background: #e2e8f0;
@@ -164,9 +164,9 @@
             padding: 5px 6px;
             border-bottom: 1px solid #f1f5f9;
             vertical-align: middle;
-            max-width: 130px;
+            max-width: 120px;
             word-break: break-word;
-            font-size: 0.68rem;
+            font-size: 0.65rem;
         }
         tr:hover td {
             background: #fafcff;
@@ -211,11 +211,15 @@
             background: #c7d2fe;
             color: #3730a3;
         }
+        .badge-trans {
+            background: #fef3c7;
+            color: #92400e;
+        }
         .note-cell {
             max-width: 150px;
             white-space: pre-wrap;
             word-break: break-word;
-            font-size: 0.6rem;
+            font-size: 0.58rem;
         }
         .empty-state {
             padding: 40px 20px;
@@ -294,12 +298,66 @@
         .nopol-cell {
             font-family: 'Courier New', monospace;
             font-weight: 600;
-            font-size: 0.7rem;
+            font-size: 0.65rem;
             color: #1e40af;
             background: #eff6ff;
             padding: 2px 8px;
             border-radius: 4px;
             display: inline-block;
+        }
+        .rangka-clickable {
+            cursor: pointer;
+            color: #2563eb;
+            text-decoration: underline dotted;
+            font-weight: 600;
+        }
+        .rangka-clickable:hover {
+            color: #dc2626;
+        }
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+        }
+        .tooltip .tooltip-text {
+            visibility: hidden;
+            width: 300px;
+            background: #1e293b;
+            color: #fff;
+            text-align: left;
+            border-radius: 8px;
+            padding: 12px;
+            position: absolute;
+            z-index: 100;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.7rem;
+            font-weight: normal;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            white-space: normal;
+            word-break: break-all;
+        }
+        .tooltip .tooltip-text::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #1e293b transparent transparent transparent;
+        }
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        .kosong-text {
+            color: #94a3b8;
+            font-style: italic;
+            font-size: 0.6rem;
         }
         @media (max-width: 768px) {
             .filter-bar {
@@ -323,11 +381,10 @@
     <div class="container">
         <h1>📊 Analisis Data Lelang</h1>
         <div class="subtitle">
-            Pengecekan Tahun dari 10 digit No.Rangka · Kesesuaian Tipe (longgar) · Nama STNK vs BPKB · Status PT
+            Pengecekan Tahun dari 10 digit No.Rangka · Kesesuaian Tipe · Nama STNK vs BPKB · Status PT · Cek Transmisi
             <span class="filter-info">🌏 Hanya merk Asia (Jepang, China, Korea)</span>
         </div>
 
-        <!-- UPLOAD AREA -->
         <div class="upload-card" id="dropZone">
             <div>
                 <label class="upload-label" for="fileInput">📁 Pilih File Excel</label>
@@ -340,28 +397,16 @@
             <div class="stats">
                 <span>📋 Total Data: <strong id="totalRows">0</strong></span>
                 <span>⚠️ Anomali: <strong id="anomaliCount">0</strong></span>
-                <span>📌 Grade A: <strong id="gradeACount">0</strong></span>
+                <span>🔧 Transmisi Beda: <strong id="transBedaCount">0</strong></span>
                 <span>🌏 Asia: <strong id="asiaCount">0</strong></span>
             </div>
             <div class="loading" id="loadingIndicator">⏳ Memproses data...</div>
             <div class="debug-info" id="debugInfo"></div>
         </div>
 
-        <!-- TABLE -->
         <div class="table-wrapper">
             <div class="filter-bar">
                 <label>🔍 Cari: <input type="text" id="searchInput" placeholder="Merk / Model / Nama..." style="min-width:160px;" /></label>
-                <label>📌 Grade:
-                    <select id="gradeFilter">
-                        <option value="all">Semua</option>
-                        <option value="A">A</option>
-                        <option value="B">B</option>
-                        <option value="C">C</option>
-                        <option value="D">D</option>
-                        <option value="E">E</option>
-                        <option value="F">F</option>
-                    </select>
-                </label>
                 <label>⚠️ Status:
                     <select id="statusFilter">
                         <option value="all">Semua</option>
@@ -374,6 +419,13 @@
                         <option value="all">Semua</option>
                         <option value="asia">Asia (Jepang/China/Korea)</option>
                         <option value="nonasia">Non-Asia</option>
+                    </select>
+                </label>
+                <label>🔧 Transmisi:
+                    <select id="transFilter">
+                        <option value="all">Semua</option>
+                        <option value="sama">✅ Sama</option>
+                        <option value="beda">❌ Beda</option>
                     </select>
                 </label>
                 <span style="font-size:0.7rem;color:#94a3b8;margin-left:auto;">Klik header untuk urutkan</span>
@@ -391,12 +443,12 @@
                             <th data-sort="tipeSama">Tipe Sama</th>
                             <th data-sort="tahun">Tahun</th>
                             <th data-sort="tahunRangka">Tahun Rangka</th>
+                            <th data-sort="transmisi">Transmisi</th>
                             <th data-sort="namaSTNK">Nama STNK</th>
                             <th data-sort="namaBPKB">Nama BPKB</th>
                             <th data-sort="namaSama">Nama Sama</th>
                             <th data-sort="anPT">AN PT</th>
                             <th data-sort="note1">Note 1</th>
-                            <th data-sort="grade">Grade</th>
                         </tr>
                     </thead>
                     <tbody id="tableBody">
@@ -426,21 +478,20 @@
         let currentPage = 1;
         const pageSize = 25;
 
-        // DOM refs
         const fileInput = document.getElementById('fileInput');
         const dropZone = document.getElementById('dropZone');
         const fileName = document.getElementById('fileName');
         const loadingIndicator = document.getElementById('loadingIndicator');
         const debugInfo = document.getElementById('debugInfo');
         const searchInput = document.getElementById('searchInput');
-        const gradeFilter = document.getElementById('gradeFilter');
         const statusFilter = document.getElementById('statusFilter');
         const regionFilter = document.getElementById('regionFilter');
+        const transFilter = document.getElementById('transFilter');
         const tableBody = document.getElementById('tableBody');
         const tableHead = document.getElementById('tableHead');
         const totalRows = document.getElementById('totalRows');
         const anomaliCount = document.getElementById('anomaliCount');
-        const gradeACount = document.getElementById('gradeACount');
+        const transBedaCount = document.getElementById('transBedaCount');
         const asiaCount = document.getElementById('asiaCount');
         const prevPageBtn = document.getElementById('prevPage');
         const nextPageBtn = document.getElementById('nextPage');
@@ -474,41 +525,86 @@
         function getRegion(merk) {
             const upperMerk = (merk || '').toUpperCase().trim();
             if (!upperMerk) return 'unknown';
-
             for (let b of ASIA_BRANDS) {
-                if (upperMerk.includes(b) || b.includes(upperMerk)) {
-                    return 'asia';
-                }
+                if (upperMerk.includes(b) || b.includes(upperMerk)) return 'asia';
             }
             for (let b of EUROPE_BRANDS) {
-                if (upperMerk.includes(b) || b.includes(upperMerk)) {
-                    return 'europe';
-                }
+                if (upperMerk.includes(b) || b.includes(upperMerk)) return 'europe';
             }
             return 'other';
         }
 
-        function isAsiaBrand(merk) {
-            return getRegion(merk) === 'asia';
+        function isAsiaBrand(merk) { return getRegion(merk) === 'asia'; }
+
+        // ============================================================
+        // 3. PARSING TRANSMISI
+        // ============================================================
+        function parseTransmisi(text) {
+            if (!text) return null;
+            const upper = text.toUpperCase();
+            if (upper.includes(' AT ') || upper.includes(' A/T ') || upper.includes(' CVT ') ||
+                upper.match(/[^A-Z]AT[^A-Z]/) || upper.match(/[^A-Z]A\/T[^A-Z]/) || upper.match(/[^A-Z]CVT[^A-Z]/) ||
+                upper.startsWith('AT ') || upper.startsWith('A/T ') || upper.startsWith('CVT ')) {
+                return 'AT';
+            }
+            if (upper.includes(' MT ') || upper.includes(' M/T ') ||
+                upper.match(/[^A-Z]MT[^A-Z]/) || upper.match(/[^A-Z]M\/T[^A-Z]/) ||
+                upper.startsWith('MT ') || upper.startsWith('M/T ')) {
+                return 'MT';
+            }
+            return null;
+        }
+
+        function checkTransmisi(modelDok, modelFisik, transDoc) {
+            // Cek dari model dokumen dan fisik
+            const transDok = parseTransmisi(modelDok);
+            const transFisik = parseTransmisi(modelFisik);
+
+            // Cek dari parameter TRANS. (kolom Trans.)
+            let transParam = null;
+            if (transDoc) {
+                const upper = transDoc.toUpperCase().trim();
+                if (upper.includes('AT') || upper.includes('CVT')) transParam = 'AT';
+                else if (upper.includes('MT')) transParam = 'MT';
+            }
+
+            // Gabungkan hasil
+            const hasil = [];
+            if (transDok) hasil.push({ sumber: 'Model Dokumen', value: transDok });
+            if (transFisik) hasil.push({ sumber: 'Model Fisik', value: transFisik });
+            if (transParam) hasil.push({ sumber: 'Trans.', value: transParam });
+
+            // Jika tidak ada data transmisi
+            if (hasil.length === 0) {
+                return { status: 'unknown', detail: 'Tidak terdeteksi' };
+            }
+
+            // Ambil nilai yang paling sering muncul
+            const values = hasil.map(h => h.value);
+            const uniq = [...new Set(values)];
+            if (uniq.length === 1) {
+                return { status: 'sama', value: uniq[0], detail: `Semua: ${uniq[0]}` };
+            } else {
+                // Tampilkan detail perbedaan
+                const detail = hasil.map(h => `${h.sumber}: ${h.value}`).join(' | ');
+                return { status: 'beda', value: uniq.join('/'), detail: detail };
+            }
         }
 
         // ============================================================
-        // 3. FUNGSI ANALISIS - PARSING TAHUN DARI RANGKA
+        // 4. PARSING TAHUN DARI RANGKA
         // ============================================================
         function parseYearFromRangka(rangka) {
             if (!rangka || typeof rangka !== 'string') return null;
             const clean = rangka.replace(/\s/g, '').toUpperCase();
-
             const yearMatch = clean.match(/(19|20)\d{2}/);
             if (yearMatch) return parseInt(yearMatch[0]);
-
             const last10 = clean.slice(-10);
             const twoDigit = last10.slice(-2);
             const num = parseInt(twoDigit);
             if (!isNaN(num) && num >= 0 && num <= 99) {
                 return num > 30 ? 1900 + num : 2000 + num;
             }
-
             if (clean.length >= 10) {
                 const chars = clean.slice(-10);
                 const tryYear = parseInt(chars.slice(2, 4));
@@ -516,44 +612,32 @@
                     return tryYear > 30 ? 1900 + tryYear : 2000 + tryYear;
                 }
             }
-
             return null;
         }
 
         // ============================================================
-        // 4. FUNGSI ANALISIS - TIPE LONGGAR
+        // 5. CEK TIPE LONGGAR
         // ============================================================
         function isTipeSamaLonggar(modelDok, modelFisik) {
             if (!modelDok || !modelFisik) return false;
             const dok = modelDok.toUpperCase().replace(/\s/g, '');
             const fisik = modelFisik.toUpperCase().replace(/\s/g, '');
-
             if (!dok || !fisik) return false;
-
-            let dokChars = dok.split('');
-            let fisikChars = fisik.split('');
-
-            dokChars = dokChars.filter(c => c.match(/[A-Z0-9]/));
-            fisikChars = fisikChars.filter(c => c.match(/[A-Z0-9]/));
-
+            let dokChars = dok.split('').filter(c => c.match(/[A-Z0-9]/));
+            let fisikChars = fisik.split('').filter(c => c.match(/[A-Z0-9]/));
             if (fisikChars.length === 0) return false;
-
             let matchCount = 0;
             let dokCopy = [...dokChars];
             for (let char of fisikChars) {
                 const idx = dokCopy.indexOf(char);
-                if (idx !== -1) {
-                    matchCount++;
-                    dokCopy.splice(idx, 1);
-                }
+                if (idx !== -1) { matchCount++;
+                    dokCopy.splice(idx, 1); }
             }
-
-            const ratio = matchCount / fisikChars.length;
-            return ratio >= 0.6;
+            return (matchCount / fisikChars.length) >= 0.6;
         }
 
         // ============================================================
-        // 5. FUNGSI ANALISIS UTAMA
+        // 6. FUNGSI ANALISIS UTAMA
         // ============================================================
         function analyzeRow(row) {
             const merk = String(row['MERK'] || '').trim();
@@ -564,8 +648,8 @@
             const nopol = String(row['NO POL'] || row['NO POLISI'] || '').trim();
             const namaSTNK = String(row['NAMA STNK'] || '').trim();
             const namaBPKB = String(row['Nama BPKB'] || '').trim();
+            const transDoc = String(row['TRANS.'] || row['TRANS'] || '').trim();
             const note1 = String(row['NOTE 1'] || '').trim();
-            const grade = String(row['CAR GRADE'] || '').trim();
 
             const region = getRegion(merk);
             const isAsia = region === 'asia';
@@ -577,16 +661,30 @@
                 if (tahun && tahunRangka && Math.abs(tahun - tahunRangka) > 2) {
                     tahunValid = false;
                 }
-            } else {
-                tahunValid = true;
             }
 
             const tipeSama = isTipeSamaLonggar(modelDok, modelFisik);
-            const namaSama = namaSTNK.toLowerCase() === namaBPKB.toLowerCase() && namaSTNK.length > 0;
+
+            // Nama STNK vs BPKB - jika kosong, anggap sama
+            let namaSama = true;
+            let namaKosong = false;
+            if (!namaSTNK && !namaBPKB) {
+                namaKosong = true;
+                namaSama = true;
+            } else if (namaSTNK && namaBPKB) {
+                namaSama = namaSTNK.toLowerCase() === namaBPKB.toLowerCase();
+            } else {
+                namaSama = false;
+            }
 
             const anPT = namaSTNK.toUpperCase().startsWith('PT') ||
                 namaBPKB.toUpperCase().startsWith('PT') ||
                 note1.toUpperCase().includes('AN PT');
+
+            // Cek transmisi
+            const transResult = checkTransmisi(modelDok, modelFisik, transDoc);
+            const transSama = transResult.status === 'sama';
+            const transDetail = transResult.detail;
 
             let anomali = false;
             let reasons = [];
@@ -595,21 +693,22 @@
                 anomali = true;
                 reasons.push(`Tahun mismatch (${tahun} vs ${tahunRangka})`);
             }
-
             if (!tipeSama && modelDok && modelFisik) {
                 anomali = true;
                 reasons.push('Tipe berbeda');
             }
-
             if (!namaSama && namaSTNK && namaBPKB) {
                 anomali = true;
                 reasons.push('Nama STNK ≠ BPKB');
             }
-
             if (note1.toUpperCase().includes('AN PT') && !namaSTNK.toUpperCase().startsWith('PT') && !namaBPKB.toUpperCase()
                 .startsWith('PT')) {
                 anomali = true;
                 reasons.push('Note "AN PT" tapi nama bukan PT');
+            }
+            if (!transSama && transResult.status !== 'unknown') {
+                anomali = true;
+                reasons.push(`Transmisi: ${transDetail}`);
             }
 
             return {
@@ -621,32 +720,29 @@
                 nopol,
                 namaSTNK,
                 namaBPKB,
+                transDoc,
                 note1,
-                grade,
                 region,
                 isAsia,
                 tahunRangka,
                 tahunValid,
                 tipeSama,
                 namaSama,
+                namaKosong,
                 anPT,
+                transResult,
+                transSama,
+                transDetail,
                 anomali,
                 reasons: reasons.join('; ')
             };
         }
 
         // ============================================================
-        // 6. PROSES EXCEL
+        // 7. PROSES EXCEL
         // ============================================================
         function processExcelData(jsonData) {
-            if (!jsonData || jsonData.length < 2) {
-                console.log('Data kosong atau kurang dari 2 baris');
-                return [];
-            }
-
-            console.log('Jumlah baris data:', jsonData.length);
-            console.log('Header:', jsonData[0]);
-
+            if (!jsonData || jsonData.length < 2) return [];
             const header = jsonData[0];
             const cleanHeader = header.map(h => String(h || '').trim());
 
@@ -669,11 +765,9 @@
                 nopol: findCol(['NO POL', 'NO POLISI', 'NOPOL']),
                 namaSTNK: findCol(['NAMA STNK', 'NAMA STNK']),
                 namaBPKB: findCol(['Nama BPKB', 'NAMA BPKB']),
+                trans: findCol(['TRANS.', 'TRANS']),
                 note1: findCol(['NOTE 1', 'NOTE']),
-                grade: findCol(['CAR GRADE', 'GRADE']),
             };
-
-            console.log('Kolom mapping:', colMap);
 
             const rows = [];
             for (let i = 1; i < jsonData.length; i++) {
@@ -691,33 +785,27 @@
                 if (colMap.nopol !== -1) obj['NO POL'] = String(row[colMap.nopol] || '').trim();
                 if (colMap.namaSTNK !== -1) obj['NAMA STNK'] = String(row[colMap.namaSTNK] || '').trim();
                 if (colMap.namaBPKB !== -1) obj['Nama BPKB'] = String(row[colMap.namaBPKB] || '').trim();
+                if (colMap.trans !== -1) obj['TRANS.'] = String(row[colMap.trans] || '').trim();
                 if (colMap.note1 !== -1) obj['NOTE 1'] = String(row[colMap.note1] || '').trim();
-                if (colMap.grade !== -1) obj['CAR GRADE'] = String(row[colMap.grade] || '').trim();
 
-                if (obj['MERK'] || obj['LOT NO'] || obj['NO.RANGKA'] || obj['MODEL DOKUMEN']) {
+                if (obj['MERK'] || obj['LOT NO'] || obj['NO.RANGKA']) {
                     rows.push(obj);
                 }
-            }
-
-            console.log('Jumlah data terproses:', rows.length);
-            if (rows.length > 0) {
-                console.log('Sample data:', rows[0]);
             }
             return rows;
         }
 
         // ============================================================
-        // 7. RENDER
+        // 8. RENDER
         // ============================================================
         function renderTable(data) {
             const search = searchInput.value.toLowerCase().trim();
-            const gradeVal = gradeFilter.value;
             const statusVal = statusFilter.value;
             const regionVal = regionFilter.value;
+            const transVal = transFilter.value;
 
             filteredData = data.filter(row => {
                 const a = row._analysis || {};
-
                 const searchable = [
                     row['MERK'] || '',
                     row['MODEL DOKUMEN'] || '',
@@ -727,14 +815,13 @@
                     row['NO POL'] || ''
                 ].join(' ').toLowerCase();
                 if (search && !searchable.includes(search)) return false;
-
-                if (gradeVal !== 'all' && a.grade !== gradeVal) return false;
                 if (statusVal === 'ok' && a.anomali) return false;
                 if (statusVal === 'anomali' && !a.anomali) return false;
-
                 if (regionVal === 'asia' && !a.isAsia) return false;
                 if (regionVal === 'nonasia' && a.isAsia) return false;
-
+                if (transVal === 'sama' && !a.transSama && a.transResult.status !== 'unknown') return false;
+                if (transVal === 'beda' && a.transSama) return false;
+                if (transVal === 'beda' && a.transResult.status === 'unknown') return false;
                 return true;
             });
 
@@ -743,7 +830,6 @@
                     let va, vb;
                     const ka = a._analysis || {};
                     const kb = b._analysis || {};
-
                     switch (sortKey) {
                         case 'lot':
                             va = parseInt(a['LOT NO']) || 0;
@@ -781,6 +867,10 @@
                             va = ka.tahunRangka || 0;
                             vb = kb.tahunRangka || 0;
                             break;
+                        case 'transmisi':
+                            va = ka.transSama ? 1 : (ka.transResult.status === 'unknown' ? 2 : 0);
+                            vb = kb.transSama ? 1 : (kb.transResult.status === 'unknown' ? 2 : 0);
+                            break;
                         case 'namaSTNK':
                             va = (a['NAMA STNK'] || '').toLowerCase();
                             vb = (b['NAMA STNK'] || '').toLowerCase();
@@ -801,10 +891,6 @@
                             va = (a['NOTE 1'] || '').toLowerCase();
                             vb = (b['NOTE 1'] || '').toLowerCase();
                             break;
-                        case 'grade':
-                            va = ka.grade || 'Z';
-                            vb = kb.grade || 'Z';
-                            break;
                         default:
                             va = (a[sortKey] || '').toString().toLowerCase();
                             vb = (b[sortKey] || '').toString().toLowerCase();
@@ -818,8 +904,9 @@
             totalRows.textContent = filteredData.length;
             const anom = filteredData.filter(r => r._analysis && r._analysis.anomali).length;
             anomaliCount.textContent = anom;
-            const gradeA = filteredData.filter(r => r._analysis && r._analysis.grade === 'A').length;
-            gradeACount.textContent = gradeA;
+            const transBeda = filteredData.filter(r => r._analysis && !r._analysis.transSama && r._analysis.transResult.status !==
+                'unknown').length;
+            transBedaCount.textContent = transBeda;
             const asia = filteredData.filter(r => r._analysis && r._analysis.isAsia).length;
             asiaCount.textContent = asia;
 
@@ -830,14 +917,8 @@
             const pageData = filteredData.slice(start, end);
 
             if (pageData.length === 0) {
-                tableBody.innerHTML = `
-                    <tr>
-                        <td colspan="15" class="empty-state">
-                            <span class="icon">${filteredData.length === 0 && allData.length > 0 ? '🔍' : '📂'}</span>
-                            ${filteredData.length === 0 && allData.length > 0 ? 'Tidak ada data yang cocok dengan filter' : 'Upload file Excel untuk memulai analisis'}
-                        </td>
-                    </tr>
-                `;
+                tableBody.innerHTML =
+                    `<tr><td colspan="15" class="empty-state"><span class="icon">${filteredData.length === 0 && allData.length > 0 ? '🔍' : '📂'}</span>${filteredData.length === 0 && allData.length > 0 ? 'Tidak ada data yang cocok dengan filter' : 'Upload file Excel untuk memulai analisis'}</td></tr>`;
             } else {
                 let html = '';
                 pageData.forEach((row) => {
@@ -852,7 +933,6 @@
                     const namaSTNK = row['NAMA STNK'] || '-';
                     const namaBPKB = row['Nama BPKB'] || '-';
                     const note1 = row['NOTE 1'] || '-';
-                    const grade = a.grade || '-';
 
                     const regionBadge = a.isAsia ?
                         '<span class="badge badge-info">🌏 Asia</span>' :
@@ -861,9 +941,20 @@
                     const tipeBadge = a.tipeSama ?
                         '<span class="badge badge-success">✅ Sama</span>' :
                         '<span class="badge badge-danger">❌ Beda</span>';
-                    const namaBadge = a.namaSama ?
+
+                    // Nama Sama - jika kosong, tampilkan "Kosong"
+                    let namaDisplay = namaSTNK;
+                    let namaBPKBDisplay = namaBPKB;
+                    if (a.namaKosong) {
+                        namaDisplay = '<span class="kosong-text">(kosong)</span>';
+                        namaBPKBDisplay = '<span class="kosong-text">(kosong)</span>';
+                    }
+                    const namaBadge = a.namaKosong ?
+                        '<span class="badge badge-secondary">⚪ Kosong</span>' :
+                        a.namaSama ?
                         '<span class="badge badge-success">✅ Sama</span>' :
                         '<span class="badge badge-danger">❌ Beda</span>';
+
                     const ptBadge = a.anPT ?
                         '<span class="badge badge-pt">🏢 PT</span>' :
                         '<span class="badge badge-secondary">Non-PT</span>';
@@ -871,17 +962,23 @@
                         '<span class="badge badge-danger">⚠️ Anomali</span>' :
                         '<span class="badge badge-success">✅ OK</span>';
 
-                    let gradeBadge = '-';
-                    if (grade) {
-                        const cls = grade === 'A' ? 'badge-success' :
-                            grade === 'F' ? 'badge-danger' :
-                            'badge-warning';
-                        gradeBadge = `<span class="badge ${cls}">${grade}</span>`;
+                    // Transmisi
+                    let transBadge = '-';
+                    let transDisplay = a.transDetail || 'Tidak terdeteksi';
+                    if (a.transResult.status === 'sama') {
+                        transBadge = `<span class="badge badge-success">✅ ${a.transResult.value}</span>`;
+                    } else if (a.transResult.status === 'beda') {
+                        transBadge = `<span class="badge badge-danger">❌ Beda</span>`;
+                    } else {
+                        transBadge = `<span class="badge badge-secondary">❓ Tidak terdeteksi</span>`;
                     }
 
+                    // Tahun Rangka - clickable untuk show detail
                     let tahunRangkaDisplay = tahunRangka;
+                    let rangkaDetail = a.noRangka || '-';
                     if (a.isAsia && a.tahunRangka && a.tahun && Math.abs(a.tahun - a.tahunRangka) > 2) {
-                        tahunRangkaDisplay = `<span style="color:#dc2626;font-weight:600;">${tahunRangka} ⚠️</span>`;
+                        tahunRangkaDisplay =
+                            `<span class="tooltip rangka-clickable" onclick="alert('No. Rangka: ${a.noRangka || '-'}\nTahun dari rangka: ${a.tahunRangka}\nTahun dokumen: ${a.tahun}')">${tahunRangka} ⚠️</span>`;
                     }
 
                     const nopolDisplay = nopol !== '-' ?
@@ -898,12 +995,12 @@
                         <td>${tipeBadge}</td>
                         <td>${tahun}</td>
                         <td>${tahunRangkaDisplay}</td>
-                        <td style="max-width:100px;font-size:0.6rem;">${namaSTNK}</td>
-                        <td style="max-width:100px;font-size:0.6rem;">${namaBPKB}</td>
+                        <td>${transBadge}</td>
+                        <td style="max-width:100px;font-size:0.6rem;">${namaDisplay}</td>
+                        <td style="max-width:100px;font-size:0.6rem;">${namaBPKBDisplay}</td>
                         <td>${namaBadge}</td>
                         <td>${ptBadge}</td>
                         <td class="note-cell">${note1}</td>
-                        <td>${gradeBadge}<br>${statusBadge}</td>
                     </tr>`;
                 });
                 tableBody.innerHTML = html;
@@ -915,15 +1012,13 @@
         }
 
         // ============================================================
-        // 8. LOAD FILE
+        // 9. LOAD FILE
         // ============================================================
         function loadFile(file) {
             if (!file) return;
-
             allData = [];
             filteredData = [];
             currentPage = 1;
-
             fileName.textContent = `📄 ${file.name}`;
             loadingIndicator.classList.add('show');
             debugInfo.classList.remove('show');
@@ -933,13 +1028,11 @@
                 try {
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, { type: 'array' });
-
                     const firstSheetName = workbook.SheetNames[0];
                     const firstSheet = workbook.Sheets[firstSheetName];
                     const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
 
-                    let debugMsg = `📊 Sheet: ${firstSheetName}\n`;
-                    debugMsg += `📋 Total baris: ${jsonData.length}\n`;
+                    let debugMsg = `📊 Sheet: ${firstSheetName}\n📋 Total baris: ${jsonData.length}\n`;
                     if (jsonData.length > 0) {
                         debugMsg += `📌 Header: ${jsonData[0].slice(0, 15).join(' | ')}...\n`;
                     }
@@ -955,7 +1048,6 @@
 
                     if (rawData.length === 0) {
                         debugMsg += `⚠️ Tidak ada data yang bisa diproses.\n`;
-                        debugMsg += `Kolom yang dibutuhkan: MERK, MODEL DOKUMEN, MODEL FISIK, TAHUN, NO.RANGKA, NO POL, NAMA STNK, Nama BPKB\n`;
                         debugInfo.textContent = debugMsg;
                         debugInfo.classList.add('show');
                         loadingIndicator.classList.remove('show');
@@ -963,19 +1055,11 @@
                         return;
                     }
 
-                    allData = rawData.map(row => {
-                        row._analysis = analyzeRow(row);
-                        return row;
-                    });
-
+                    allData = rawData.map(row => { row._analysis = analyzeRow(row); return row; });
                     const asiaCountData = allData.filter(r => r._analysis.isAsia).length;
-                    debugMsg += `✅ Analisis selesai.\n`;
-                    debugMsg += `🌏 Merk Asia: ${asiaCountData} unit\n`;
-                    debugMsg += `🌍 Non-Asia: ${allData.length - asiaCountData} unit`;
-
+                    debugMsg += `✅ Analisis selesai.\n🌏 Merk Asia: ${asiaCountData} unit\n🌍 Non-Asia: ${allData.length - asiaCountData} unit`;
                     debugInfo.textContent = debugMsg;
                     debugInfo.classList.add('show');
-
                     loadingIndicator.classList.remove('show');
                     renderTable(allData);
 
@@ -987,34 +1071,25 @@
                     debugInfo.classList.add('show');
                 }
             };
-
             reader.onerror = function() {
                 loadingIndicator.classList.remove('show');
                 alert('Gagal membaca file.');
             };
-
             reader.readAsArrayBuffer(file);
         }
 
         // ============================================================
-        // 9. EVENT LISTENERS
+        // 10. EVENT LISTENERS
         // ============================================================
-
         fileInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) loadFile(file);
         });
 
-        dropZone.addEventListener('dragover', function(e) {
-            e.preventDefault();
-            this.classList.add('dragover');
-        });
-
-        dropZone.addEventListener('dragleave', function(e) {
-            e.preventDefault();
-            this.classList.remove('dragover');
-        });
-
+        dropZone.addEventListener('dragover', function(e) { e.preventDefault();
+            this.classList.add('dragover'); });
+        dropZone.addEventListener('dragleave', function(e) { e.preventDefault();
+            this.classList.remove('dragover'); });
         dropZone.addEventListener('drop', function(e) {
             e.preventDefault();
             this.classList.remove('dragover');
@@ -1038,62 +1113,42 @@
             }
         });
 
-        searchInput.addEventListener('input', function() {
-            currentPage = 1;
-            renderTable(allData);
-        });
-
-        gradeFilter.addEventListener('change', function() {
-            currentPage = 1;
-            renderTable(allData);
-        });
-
-        statusFilter.addEventListener('change', function() {
-            currentPage = 1;
-            renderTable(allData);
-        });
-
-        regionFilter.addEventListener('change', function() {
-            currentPage = 1;
-            renderTable(allData);
-        });
+        searchInput.addEventListener('input', function() { currentPage = 1;
+            renderTable(allData); });
+        statusFilter.addEventListener('change', function() { currentPage = 1;
+            renderTable(allData); });
+        regionFilter.addEventListener('change', function() { currentPage = 1;
+            renderTable(allData); });
+        transFilter.addEventListener('change', function() { currentPage = 1;
+            renderTable(allData); });
 
         tableHead.addEventListener('click', function(e) {
             const th = e.target.closest('th');
             if (!th) return;
             const key = th.dataset.sort;
             if (!key) return;
-
-            if (sortKey === key) {
-                sortAsc = !sortAsc;
-            } else {
-                sortKey = key;
-                sortAsc = true;
-            }
+            if (sortKey === key) { sortAsc = !sortAsc; } else { sortKey = key;
+                sortAsc = true; }
             renderTable(allData);
         });
 
-        prevPageBtn.addEventListener('click', function() {
-            if (currentPage > 1) {
-                currentPage--;
-                renderTable(allData);
-            }
-        });
-
+        prevPageBtn.addEventListener('click', function() { if (currentPage > 1) { currentPage--;
+                renderTable(allData); } });
         nextPageBtn.addEventListener('click', function() {
             const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
-            if (currentPage < totalPages) {
-                currentPage++;
-                renderTable(allData);
-            }
+            if (currentPage < totalPages) { currentPage++;
+                renderTable(allData); }
         });
 
         // ============================================================
-        // 10. INISIALISASI
+        // 11. INISIALISASI
         // ============================================================
         renderTable([]);
         console.log('📊 Analisis Data Lelang siap digunakan.');
-        console.log('📌 Kolom baru: No. Polisi ditampilkan untuk setiap pengecekan');
+        console.log('📌 Perubahan:');
+        console.log('  - Klik tahun rangka yang salah untuk lihat detail no rangka');
+        console.log('  - Nama STNK/BPKB kosong ditampilkan "(kosong)" dan dianggap sama');
+        console.log('  - Kolom Grade diganti dengan Cek Transmisi (AT/MT)');
     </script>
 </body>
 </html>
