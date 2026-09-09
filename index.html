@@ -305,59 +305,91 @@
             border-radius: 4px;
             display: inline-block;
         }
-        .rangka-clickable {
-            cursor: pointer;
-            color: #2563eb;
-            text-decoration: underline dotted;
-            font-weight: 600;
-        }
-        .rangka-clickable:hover {
-            color: #dc2626;
-        }
-        .tooltip {
+        /* Tooltip khusus untuk tahun rangka */
+        .rangka-tooltip {
             position: relative;
             display: inline-block;
-            cursor: pointer;
+            cursor: help;
+            font-weight: 600;
+            color: #dc2626;
+            text-decoration: underline dotted;
+            border-bottom: 2px dotted #dc2626;
         }
-        .tooltip .tooltip-text {
+        .rangka-tooltip .tooltip-box {
             visibility: hidden;
-            width: 300px;
+            width: 320px;
             background: #1e293b;
-            color: #fff;
+            color: #f1f5f9;
             text-align: left;
-            border-radius: 8px;
-            padding: 12px;
+            border-radius: 10px;
+            padding: 14px 16px;
             position: absolute;
-            z-index: 100;
-            bottom: 125%;
+            z-index: 1000;
+            bottom: 130%;
             left: 50%;
             transform: translateX(-50%);
             opacity: 0;
-            transition: opacity 0.3s;
+            transition: opacity 0.25s ease, visibility 0.25s ease;
             font-size: 0.7rem;
             font-weight: normal;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
             white-space: normal;
             word-break: break-all;
+            line-height: 1.6;
+            pointer-events: none;
         }
-        .tooltip .tooltip-text::after {
+        .rangka-tooltip .tooltip-box::after {
             content: "";
             position: absolute;
             top: 100%;
             left: 50%;
-            margin-left: -5px;
-            border-width: 5px;
+            margin-left: -6px;
+            border-width: 6px;
             border-style: solid;
             border-color: #1e293b transparent transparent transparent;
         }
-        .tooltip:hover .tooltip-text {
+        .rangka-tooltip:hover .tooltip-box {
             visibility: visible;
             opacity: 1;
+        }
+        .rangka-tooltip .tooltip-box .label {
+            color: #94a3b8;
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .rangka-tooltip .tooltip-box .value {
+            color: #f1f5f9;
+            font-weight: 600;
+            font-family: 'Courier New', monospace;
+            background: #0f172a;
+            padding: 2px 8px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-top: 2px;
+        }
+        .rangka-tooltip .tooltip-box .warning-text {
+            color: #fbbf24;
+            font-weight: 600;
+        }
+        .rangka-tooltip .tooltip-box .row-detail {
+            display: flex;
+            justify-content: space-between;
+            padding: 2px 0;
+            border-bottom: 1px solid #334155;
+        }
+        .rangka-tooltip .tooltip-box .row-detail:last-child {
+            border-bottom: none;
         }
         .kosong-text {
             color: #94a3b8;
             font-style: italic;
             font-size: 0.6rem;
+        }
+        .trans-detail {
+            font-size: 0.55rem;
+            color: #64748b;
+            display: block;
         }
         @media (max-width: 768px) {
             .filter-bar {
@@ -373,6 +405,14 @@
             .stats span {
                 font-size: 0.75rem;
                 padding: 4px 12px;
+            }
+            .rangka-tooltip .tooltip-box {
+                width: 250px;
+                left: 0;
+                transform: none;
+            }
+            .rangka-tooltip .tooltip-box::after {
+                left: 20%;
             }
         }
     </style>
@@ -556,36 +596,26 @@
         }
 
         function checkTransmisi(modelDok, modelFisik, transDoc) {
-            // Cek dari model dokumen dan fisik
             const transDok = parseTransmisi(modelDok);
             const transFisik = parseTransmisi(modelFisik);
-
-            // Cek dari parameter TRANS. (kolom Trans.)
             let transParam = null;
             if (transDoc) {
                 const upper = transDoc.toUpperCase().trim();
                 if (upper.includes('AT') || upper.includes('CVT')) transParam = 'AT';
                 else if (upper.includes('MT')) transParam = 'MT';
             }
-
-            // Gabungkan hasil
             const hasil = [];
             if (transDok) hasil.push({ sumber: 'Model Dokumen', value: transDok });
             if (transFisik) hasil.push({ sumber: 'Model Fisik', value: transFisik });
             if (transParam) hasil.push({ sumber: 'Trans.', value: transParam });
-
-            // Jika tidak ada data transmisi
             if (hasil.length === 0) {
                 return { status: 'unknown', detail: 'Tidak terdeteksi' };
             }
-
-            // Ambil nilai yang paling sering muncul
             const values = hasil.map(h => h.value);
             const uniq = [...new Set(values)];
             if (uniq.length === 1) {
                 return { status: 'sama', value: uniq[0], detail: `Semua: ${uniq[0]}` };
             } else {
-                // Tampilkan detail perbedaan
                 const detail = hasil.map(h => `${h.sumber}: ${h.value}`).join(' | ');
                 return { status: 'beda', value: uniq.join('/'), detail: detail };
             }
@@ -665,7 +695,6 @@
 
             const tipeSama = isTipeSamaLonggar(modelDok, modelFisik);
 
-            // Nama STNK vs BPKB - jika kosong, anggap sama
             let namaSama = true;
             let namaKosong = false;
             if (!namaSTNK && !namaBPKB) {
@@ -681,7 +710,6 @@
                 namaBPKB.toUpperCase().startsWith('PT') ||
                 note1.toUpperCase().includes('AN PT');
 
-            // Cek transmisi
             const transResult = checkTransmisi(modelDok, modelFisik, transDoc);
             const transSama = transResult.status === 'sama';
             const transDetail = transResult.detail;
@@ -942,7 +970,6 @@
                         '<span class="badge badge-success">✅ Sama</span>' :
                         '<span class="badge badge-danger">❌ Beda</span>';
 
-                    // Nama Sama - jika kosong, tampilkan "Kosong"
                     let namaDisplay = namaSTNK;
                     let namaBPKBDisplay = namaBPKB;
                     if (a.namaKosong) {
@@ -962,7 +989,6 @@
                         '<span class="badge badge-danger">⚠️ Anomali</span>' :
                         '<span class="badge badge-success">✅ OK</span>';
 
-                    // Transmisi
                     let transBadge = '-';
                     let transDisplay = a.transDetail || 'Tidak terdeteksi';
                     if (a.transResult.status === 'sama') {
@@ -973,12 +999,44 @@
                         transBadge = `<span class="badge badge-secondary">❓ Tidak terdeteksi</span>`;
                     }
 
-                    // Tahun Rangka - clickable untuk show detail
+                    // ============================================================
+                    // TAHUN RANGKA dengan TOOLTIP (bukan popup)
+                    // ============================================================
                     let tahunRangkaDisplay = tahunRangka;
-                    let rangkaDetail = a.noRangka || '-';
                     if (a.isAsia && a.tahunRangka && a.tahun && Math.abs(a.tahun - a.tahunRangka) > 2) {
-                        tahunRangkaDisplay =
-                            `<span class="tooltip rangka-clickable" onclick="alert('No. Rangka: ${a.noRangka || '-'}\nTahun dari rangka: ${a.tahunRangka}\nTahun dokumen: ${a.tahun}')">${tahunRangka} ⚠️</span>`;
+                        const noRangkaDisplay = a.noRangka || '-';
+                        const tahunDok = a.tahun || '-';
+                        const tahunRngk = a.tahunRangka;
+                        const selisih = Math.abs(tahunDok - tahunRngk);
+
+                        // Buat tooltip dengan detail lengkap
+                        tahunRangkaDisplay = `
+                            <span class="rangka-tooltip">
+                                ${tahunRngk} ⚠️
+                                <span class="tooltip-box">
+                                    <div style="margin-bottom:8px;font-weight:600;color:#fbbf24;">🔍 Detail No. Rangka</div>
+                                    <div class="row-detail">
+                                        <span class="label">No. Rangka</span>
+                                        <span class="value">${noRangkaDisplay}</span>
+                                    </div>
+                                    <div class="row-detail">
+                                        <span class="label">Tahun dari Rangka</span>
+                                        <span style="color:#f1f5f9;font-weight:600;">${tahunRngk}</span>
+                                    </div>
+                                    <div class="row-detail">
+                                        <span class="label">Tahun Dokumen</span>
+                                        <span style="color:#f1f5f9;font-weight:600;">${tahunDok}</span>
+                                    </div>
+                                    <div class="row-detail" style="border-bottom:none;padding-top:4px;">
+                                        <span class="label">Selisih</span>
+                                        <span class="warning-text">${selisih} tahun ⚠️</span>
+                                    </div>
+                                    <div style="margin-top:6px;font-size:0.55rem;color:#94a3b8;border-top:1px solid #334155;padding-top:6px;">
+                                        Hover untuk detail · Klik kanan untuk salin
+                                    </div>
+                                </span>
+                            </span>
+                        `;
                     }
 
                     const nopolDisplay = nopol !== '-' ?
@@ -1145,10 +1203,7 @@
         // ============================================================
         renderTable([]);
         console.log('📊 Analisis Data Lelang siap digunakan.');
-        console.log('📌 Perubahan:');
-        console.log('  - Klik tahun rangka yang salah untuk lihat detail no rangka');
-        console.log('  - Nama STNK/BPKB kosong ditampilkan "(kosong)" dan dianggap sama');
-        console.log('  - Kolom Grade diganti dengan Cek Transmisi (AT/MT)');
+        console.log('📌 Fitur Tooltip: Hover ke tahun rangka yang bermasalah untuk lihat detail no rangka');
     </script>
 </body>
 </html>
