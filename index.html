@@ -215,6 +215,10 @@
             background: #fef3c7;
             color: #92400e;
         }
+        .badge-unknown {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
         .note-cell {
             max-width: 150px;
             white-space: pre-wrap;
@@ -305,7 +309,6 @@
             border-radius: 4px;
             display: inline-block;
         }
-        /* Tooltip khusus untuk tahun rangka */
         .rangka-tooltip {
             position: relative;
             display: inline-block;
@@ -317,7 +320,7 @@
         }
         .rangka-tooltip .tooltip-box {
             visibility: hidden;
-            width: 320px;
+            width: 340px;
             background: #1e293b;
             color: #f1f5f9;
             text-align: left;
@@ -375,11 +378,15 @@
         .rangka-tooltip .tooltip-box .row-detail {
             display: flex;
             justify-content: space-between;
-            padding: 2px 0;
+            padding: 3px 0;
             border-bottom: 1px solid #334155;
         }
         .rangka-tooltip .tooltip-box .row-detail:last-child {
             border-bottom: none;
+        }
+        .rangka-tooltip .tooltip-box .highlight {
+            color: #4ade80;
+            font-weight: 700;
         }
         .kosong-text {
             color: #94a3b8;
@@ -390,6 +397,11 @@
             font-size: 0.55rem;
             color: #64748b;
             display: block;
+        }
+        .unknown-year {
+            color: #6b7280;
+            font-style: italic;
+            font-weight: 600;
         }
         @media (max-width: 768px) {
             .filter-bar {
@@ -421,7 +433,7 @@
     <div class="container">
         <h1>📊 Analisis Data Lelang</h1>
         <div class="subtitle">
-            Pengecekan Tahun dari 10 digit No.Rangka · Kesesuaian Tipe · Nama STNK vs BPKB · Status PT · Cek Transmisi
+            Pengecekan Tahun dari digit ke-10 No.Rangka (VIN Year Code) · Kesesuaian Tipe · Nama STNK vs BPKB · Status PT · Cek Transmisi
             <span class="filter-info">🌏 Hanya merk Asia (Jepang, China, Korea)</span>
         </div>
 
@@ -466,6 +478,14 @@
                         <option value="all">Semua</option>
                         <option value="sama">✅ Sama</option>
                         <option value="beda">❌ Beda</option>
+                    </select>
+                </label>
+                <label>📅 Tahun Rangka:
+                    <select id="tahunFilter">
+                        <option value="all">Semua</option>
+                        <option value="valid">✅ Valid</option>
+                        <option value="invalid">⚠️ Mismatch</option>
+                        <option value="unknown">❓ Tidak terdeteksi</option>
                     </select>
                 </label>
                 <span style="font-size:0.7rem;color:#94a3b8;margin-left:auto;">Klik header untuk urutkan</span>
@@ -527,6 +547,7 @@
         const statusFilter = document.getElementById('statusFilter');
         const regionFilter = document.getElementById('regionFilter');
         const transFilter = document.getElementById('transFilter');
+        const tahunFilter = document.getElementById('tahunFilter');
         const tableBody = document.getElementById('tableBody');
         const tableHead = document.getElementById('tableHead');
         const totalRows = document.getElementById('totalRows');
@@ -541,7 +562,110 @@
         let sortAsc = true;
 
         // ============================================================
-        // 2. DATA MERK ASIA
+        // 2. VIN YEAR CODE MAPPING (Digit ke-10)
+        // ============================================================
+        // Mapping standar VIN Year Code
+        const VIN_YEAR_MAP = {
+            // 1980-2000 (Huruf)
+            'A': 1980, 'B': 1981, 'C': 1982, 'D': 1983, 'E': 1984,
+            'F': 1985, 'G': 1986, 'H': 1987, 'J': 1988, 'K': 1989,
+            'L': 1990, 'M': 1991, 'N': 1992, 'P': 1993, 'R': 1994,
+            'S': 1995, 'T': 1996, 'V': 1997, 'W': 1998, 'X': 1999,
+            'Y': 2000,
+            // 2001-2009 (Angka)
+            '1': 2001, '2': 2002, '3': 2003, '4': 2004, '5': 2005,
+            '6': 2006, '7': 2007, '8': 2008, '9': 2009,
+            // 2010-2030 (Huruf)
+            'A2': 2010, 'B2': 2011, 'C2': 2012, 'D2': 2013, 'E2': 2014,
+            'F2': 2015, 'G2': 2016, 'H2': 2017, 'J2': 2018, 'K2': 2019,
+            'L2': 2020, 'M2': 2021, 'N2': 2022, 'P2': 2023, 'R2': 2024,
+            'S2': 2025, 'T2': 2026, 'V2': 2027, 'W2': 2028, 'X2': 2029,
+            'Y2': 2030,
+        };
+
+        // Mapping karakter tunggal (untuk 2010 ke atas, gunakan konteks)
+        // Karena huruf sama antara 1980-an dan 2010-an, kita perlu konteks
+        // Tapi untuk kendaraan modern (>= 2010), kita bisa pakai mapping kedua
+        const VIN_YEAR_MAP_MODERN = {
+            // 2010-2030 (Huruf)
+            'A': 2010, 'B': 2011, 'C': 2012, 'D': 2013, 'E': 2014,
+            'F': 2015, 'G': 2016, 'H': 2017, 'J': 2018, 'K': 2019,
+            'L': 2020, 'M': 2021, 'N': 2022, 'P': 2023, 'R': 2024,
+            'S': 2025, 'T': 2026, 'V': 2027, 'W': 2028, 'X': 2029,
+            'Y': 2030,
+            // Angka untuk 2031-2039
+            '1': 2031, '2': 2032, '3': 2033, '4': 2034, '5': 2035,
+            '6': 2036, '7': 2037, '8': 2038, '9': 2039,
+        };
+
+        // Fungsi parsing tahun dari digit ke-10 VIN
+        function parseYearFromVIN(rangka, tahunDokumen) {
+            if (!rangka || typeof rangka !== 'string') return { tahun: null, kode: null, status: 'no_rangka' };
+
+            const clean = rangka.replace(/\s/g, '').toUpperCase();
+
+            // Cek panjang rangka
+            if (clean.length < 10) {
+                return { tahun: null, kode: null, status: 'rangka_pendek' };
+            }
+
+            // Ambil digit ke-10 (index 9)
+            const kodeTahun = clean.charAt(9);
+
+            if (!kodeTahun) {
+                return { tahun: null, kode: null, status: 'no_kode' };
+            }
+
+            // Tentukan apakah kita pakai mapping modern atau klasik
+            // Jika tahun dokumen >= 2010, pakai modern mapping
+            // Jika tidak ada tahun dokumen, coba tebak berdasarkan konteks
+            let mapping = VIN_YEAR_MAP_MODERN;
+            let isModern = true;
+
+            if (tahunDokumen) {
+                if (tahunDokumen < 2010) {
+                    mapping = VIN_YEAR_MAP;
+                    isModern = false;
+                } else {
+                    mapping = VIN_YEAR_MAP_MODERN;
+                    isModern = true;
+                }
+            } else {
+                // Tanpa tahun dokumen, pakai modern (lebih umum untuk kendaraan lelang)
+                mapping = VIN_YEAR_MAP_MODERN;
+                isModern = true;
+            }
+
+            // Cari di mapping
+            if (mapping[kodeTahun] !== undefined) {
+                return {
+                    tahun: mapping[kodeTahun],
+                    kode: kodeTahun,
+                    status: 'valid',
+                    mapping: isModern ? 'modern' : 'klasik'
+                };
+            }
+
+            // Jika tidak ditemukan di mapping modern, coba mapping klasik
+            if (isModern && VIN_YEAR_MAP[kodeTahun] !== undefined) {
+                return {
+                    tahun: VIN_YEAR_MAP[kodeTahun],
+                    kode: kodeTahun,
+                    status: 'valid',
+                    mapping: 'klasik'
+                };
+            }
+
+            // Karakter tidak valid (I, O, Q biasanya tidak digunakan di VIN)
+            if (['I', 'O', 'Q'].includes(kodeTahun)) {
+                return { tahun: null, kode: kodeTahun, status: 'invalid_char' };
+            }
+
+            return { tahun: null, kode: kodeTahun, status: 'unknown' };
+        }
+
+        // ============================================================
+        // 3. DATA MERK ASIA
         // ============================================================
         const ASIA_BRANDS = [
             'TOYOTA', 'HONDA', 'NISSAN', 'MITSUBISHI', 'SUZUKI', 'DAIHATSU',
@@ -577,7 +701,7 @@
         function isAsiaBrand(merk) { return getRegion(merk) === 'asia'; }
 
         // ============================================================
-        // 3. PARSING TRANSMISI
+        // 4. PARSING TRANSMISI
         // ============================================================
         function parseTransmisi(text) {
             if (!text) return null;
@@ -622,30 +746,6 @@
         }
 
         // ============================================================
-        // 4. PARSING TAHUN DARI RANGKA
-        // ============================================================
-        function parseYearFromRangka(rangka) {
-            if (!rangka || typeof rangka !== 'string') return null;
-            const clean = rangka.replace(/\s/g, '').toUpperCase();
-            const yearMatch = clean.match(/(19|20)\d{2}/);
-            if (yearMatch) return parseInt(yearMatch[0]);
-            const last10 = clean.slice(-10);
-            const twoDigit = last10.slice(-2);
-            const num = parseInt(twoDigit);
-            if (!isNaN(num) && num >= 0 && num <= 99) {
-                return num > 30 ? 1900 + num : 2000 + num;
-            }
-            if (clean.length >= 10) {
-                const chars = clean.slice(-10);
-                const tryYear = parseInt(chars.slice(2, 4));
-                if (!isNaN(tryYear) && tryYear >= 0 && tryYear <= 99) {
-                    return tryYear > 30 ? 1900 + tryYear : 2000 + tryYear;
-                }
-            }
-            return null;
-        }
-
-        // ============================================================
         // 5. CEK TIPE LONGGAR
         // ============================================================
         function isTipeSamaLonggar(modelDok, modelFisik) {
@@ -684,12 +784,27 @@
             const region = getRegion(merk);
             const isAsia = region === 'asia';
 
+            // Parsing tahun dari VIN (digit ke-10)
             let tahunRangka = null;
-            let tahunValid = true;
+            let kodeTahunVIN = null;
+            let statusVIN = 'unknown';
+            let mappingVIN = null;
+
             if (isAsia) {
-                tahunRangka = parseYearFromRangka(noRangka);
-                if (tahun && tahunRangka && Math.abs(tahun - tahunRangka) > 2) {
+                const vinResult = parseYearFromVIN(noRangka, tahun);
+                tahunRangka = vinResult.tahun;
+                kodeTahunVIN = vinResult.kode;
+                statusVIN = vinResult.status;
+                mappingVIN = vinResult.mapping;
+            }
+
+            // Validasi tahun
+            let tahunValid = true;
+            let tahunMismatch = false;
+            if (isAsia && tahun && tahunRangka) {
+                if (Math.abs(tahun - tahunRangka) > 2) {
                     tahunValid = false;
+                    tahunMismatch = true;
                 }
             }
 
@@ -717,7 +832,7 @@
             let anomali = false;
             let reasons = [];
 
-            if (isAsia && !tahunValid) {
+            if (isAsia && tahunMismatch) {
                 anomali = true;
                 reasons.push(`Tahun mismatch (${tahun} vs ${tahunRangka})`);
             }
@@ -753,7 +868,11 @@
                 region,
                 isAsia,
                 tahunRangka,
+                kodeTahunVIN,
+                statusVIN,
+                mappingVIN,
                 tahunValid,
+                tahunMismatch,
                 tipeSama,
                 namaSama,
                 namaKosong,
@@ -831,6 +950,7 @@
             const statusVal = statusFilter.value;
             const regionVal = regionFilter.value;
             const transVal = transFilter.value;
+            const tahunVal = tahunFilter.value;
 
             filteredData = data.filter(row => {
                 const a = row._analysis || {};
@@ -850,6 +970,12 @@
                 if (transVal === 'sama' && !a.transSama && a.transResult.status !== 'unknown') return false;
                 if (transVal === 'beda' && a.transSama) return false;
                 if (transVal === 'beda' && a.transResult.status === 'unknown') return false;
+
+                // Filter tahun rangka
+                if (tahunVal === 'valid' && !(a.isAsia && a.tahunRangka && !a.tahunMismatch)) return false;
+                if (tahunVal === 'invalid' && !a.tahunMismatch) return false;
+                if (tahunVal === 'unknown' && !(a.isAsia && !a.tahunRangka && a.statusVIN !== 'no_rangka')) return false;
+
                 return true;
             });
 
@@ -957,7 +1083,6 @@
                     const modelDok = row['MODEL DOKUMEN'] || '-';
                     const modelFisik = row['MODEL FISIK'] || '-';
                     const tahun = row['TAHUN'] || '-';
-                    const tahunRangka = a.tahunRangka !== null ? a.tahunRangka : '-';
                     const namaSTNK = row['NAMA STNK'] || '-';
                     const namaBPKB = row['Nama BPKB'] || '-';
                     const note1 = row['NOTE 1'] || '-';
@@ -985,58 +1110,121 @@
                     const ptBadge = a.anPT ?
                         '<span class="badge badge-pt">🏢 PT</span>' :
                         '<span class="badge badge-secondary">Non-PT</span>';
-                    const statusBadge = a.anomali ?
-                        '<span class="badge badge-danger">⚠️ Anomali</span>' :
-                        '<span class="badge badge-success">✅ OK</span>';
 
                     let transBadge = '-';
-                    let transDisplay = a.transDetail || 'Tidak terdeteksi';
                     if (a.transResult.status === 'sama') {
                         transBadge = `<span class="badge badge-success">✅ ${a.transResult.value}</span>`;
                     } else if (a.transResult.status === 'beda') {
                         transBadge = `<span class="badge badge-danger">❌ Beda</span>`;
                     } else {
-                        transBadge = `<span class="badge badge-secondary">❓ Tidak terdeteksi</span>`;
+                        transBadge = `<span class="badge badge-secondary">❓ ?</span>`;
                     }
 
                     // ============================================================
-                    // TAHUN RANGKA dengan TOOLTIP (bukan popup)
+                    // TAHUN RANGKA dengan TOOLTIP VIN
                     // ============================================================
-                    let tahunRangkaDisplay = tahunRangka;
-                    if (a.isAsia && a.tahunRangka && a.tahun && Math.abs(a.tahun - a.tahunRangka) > 2) {
-                        const noRangkaDisplay = a.noRangka || '-';
-                        const tahunDok = a.tahun || '-';
-                        const tahunRngk = a.tahunRangka;
-                        const selisih = Math.abs(tahunDok - tahunRngk);
+                    let tahunRangkaDisplay = '-';
+                    if (a.isAsia) {
+                        if (a.tahunRangka) {
+                            const noRangkaDisplay = a.noRangka || '-';
+                            const tahunDok = a.tahun || '-';
+                            const tahunRngk = a.tahunRangka;
+                            const kodeVIN = a.kodeTahunVIN || '?';
+                            const mappingType = a.mappingVIN === 'modern' ? 'Modern (2010+)' : 'Klasik (1980-2009)';
 
-                        // Buat tooltip dengan detail lengkap
-                        tahunRangkaDisplay = `
-                            <span class="rangka-tooltip">
-                                ${tahunRngk} ⚠️
-                                <span class="tooltip-box">
-                                    <div style="margin-bottom:8px;font-weight:600;color:#fbbf24;">🔍 Detail No. Rangka</div>
-                                    <div class="row-detail">
-                                        <span class="label">No. Rangka</span>
-                                        <span class="value">${noRangkaDisplay}</span>
-                                    </div>
-                                    <div class="row-detail">
-                                        <span class="label">Tahun dari Rangka</span>
-                                        <span style="color:#f1f5f9;font-weight:600;">${tahunRngk}</span>
-                                    </div>
-                                    <div class="row-detail">
-                                        <span class="label">Tahun Dokumen</span>
-                                        <span style="color:#f1f5f9;font-weight:600;">${tahunDok}</span>
-                                    </div>
-                                    <div class="row-detail" style="border-bottom:none;padding-top:4px;">
-                                        <span class="label">Selisih</span>
-                                        <span class="warning-text">${selisih} tahun ⚠️</span>
-                                    </div>
-                                    <div style="margin-top:6px;font-size:0.55rem;color:#94a3b8;border-top:1px solid #334155;padding-top:6px;">
-                                        Hover untuk detail · Klik kanan untuk salin
-                                    </div>
+                            if (a.tahunMismatch) {
+                                const selisih = Math.abs(tahunDok - tahunRngk);
+                                tahunRangkaDisplay = `
+                                    <span class="rangka-tooltip">
+                                        ${tahunRngk} ⚠️
+                                        <span class="tooltip-box">
+                                            <div style="margin-bottom:8px;font-weight:600;color:#fbbf24;">🔍 Detail VIN Year Code</div>
+                                            <div class="row-detail">
+                                                <span class="label">No. Rangka</span>
+                                                <span class="value">${noRangkaDisplay}</span>
+                                            </div>
+                                            <div class="row-detail">
+                                                <span class="label">Digit ke-10</span>
+                                                <span class="value">${kodeVIN}</span>
+                                            </div>
+                                            <div class="row-detail">
+                                                <span class="label">Tahun dari VIN</span>
+                                                <span class="highlight">${tahunRngk}</span>
+                                            </div>
+                                            <div class="row-detail">
+                                                <span class="label">Tahun Dokumen</span>
+                                                <span style="color:#f1f5f9;font-weight:600;">${tahunDok}</span>
+                                            </div>
+                                            <div class="row-detail">
+                                                <span class="label">Selisih</span>
+                                                <span class="warning-text">${selisih} tahun ⚠️</span>
+                                            </div>
+                                            <div class="row-detail" style="border-bottom:none;padding-top:4px;">
+                                                <span class="label">Mapping</span>
+                                                <span style="color:#94a3b8;font-size:0.6rem;">${mappingType}</span>
+                                            </div>
+                                        </span>
+                                    </span>
+                                `;
+                            } else {
+                                // Tahun valid - tampilkan dengan tooltip hijau
+                                tahunRangkaDisplay = `
+                                    <span class="rangka-tooltip" style="color:#16a34a;border-bottom-color:#16a34a;">
+                                        ${tahunRngk} ✅
+                                        <span class="tooltip-box">
+                                            <div style="margin-bottom:8px;font-weight:600;color:#4ade80;">✅ VIN Year Code Valid</div>
+                                            <div class="row-detail">
+                                                <span class="label">No. Rangka</span>
+                                                <span class="value">${noRangkaDisplay}</span>
+                                            </div>
+                                            <div class="row-detail">
+                                                <span class="label">Digit ke-10</span>
+                                                <span class="value">${kodeVIN}</span>
+                                            </div>
+                                            <div class="row-detail">
+                                                <span class="label">Tahun dari VIN</span>
+                                                <span class="highlight">${tahunRngk}</span>
+                                            </div>
+                                            <div class="row-detail">
+                                                <span class="label">Tahun Dokumen</span>
+                                                <span style="color:#f1f5f9;font-weight:600;">${tahunDok}</span>
+                                            </div>
+                                            <div class="row-detail" style="border-bottom:none;padding-top:4px;">
+                                                <span class="label">Mapping</span>
+                                                <span style="color:#94a3b8;font-size:0.6rem;">${mappingType}</span>
+                                            </div>
+                                        </span>
+                                    </span>
+                                `;
+                            }
+                        } else {
+                            // Tidak bisa parse tahun dari VIN
+                            const noRangkaDisplay = a.noRangka || '-';
+                            let statusMsg = 'Tidak dapat menentukan tahun';
+                            if (a.statusVIN === 'rangka_pendek') statusMsg = 'No. Rangka < 10 digit';
+                            else if (a.statusVIN === 'invalid_char') statusMsg = 'Digit ke-10 = I/O/Q (invalid)';
+                            else if (a.statusVIN === 'no_kode') statusMsg = 'Digit ke-10 kosong';
+
+                            tahunRangkaDisplay = `
+                                <span class="rangka-tooltip unknown-year">
+                                    ? ⚠️
+                                    <span class="tooltip-box">
+                                        <div style="margin-bottom:8px;font-weight:600;color:#fbbf24;">⚠️ VIN Tidak Terdeteksi</div>
+                                        <div class="row-detail">
+                                            <span class="label">No. Rangka</span>
+                                            <span class="value">${noRangkaDisplay}</span>
+                                        </div>
+                                        <div class="row-detail">
+                                            <span class="label">Status</span>
+                                            <span style="color:#fbbf24;font-size:0.65rem;">${statusMsg}</span>
+                                        </div>
+                                        <div style="margin-top:6px;font-size:0.55rem;color:#94a3b8;border-top:1px solid #334155;padding-top:6px;">
+                                            Perlu cek manual no. rangka
+                                        </div>
+                                    </span>
                                 </span>
-                            </span>
-                        `;
+                            `;
+                        }
                     }
 
                     const nopolDisplay = nopol !== '-' ?
@@ -1115,7 +1303,15 @@
 
                     allData = rawData.map(row => { row._analysis = analyzeRow(row); return row; });
                     const asiaCountData = allData.filter(r => r._analysis.isAsia).length;
-                    debugMsg += `✅ Analisis selesai.\n🌏 Merk Asia: ${asiaCountData} unit\n🌍 Non-Asia: ${allData.length - asiaCountData} unit`;
+                    const validVIN = allData.filter(r => r._analysis.isAsia && r._analysis.tahunRangka).length;
+                    const unknownVIN = allData.filter(r => r._analysis.isAsia && !r._analysis.tahunRangka).length;
+
+                    debugMsg += `✅ Analisis selesai.\n`;
+                    debugMsg += `🌏 Merk Asia: ${asiaCountData} unit\n`;
+                    debugMsg += `🌍 Non-Asia: ${allData.length - asiaCountData} unit\n`;
+                    debugMsg += `📅 VIN terdeteksi: ${validVIN} unit\n`;
+                    debugMsg += `❓ VIN tidak terdeteksi: ${unknownVIN} unit`;
+
                     debugInfo.textContent = debugMsg;
                     debugInfo.classList.add('show');
                     loadingIndicator.classList.remove('show');
@@ -1179,6 +1375,8 @@
             renderTable(allData); });
         transFilter.addEventListener('change', function() { currentPage = 1;
             renderTable(allData); });
+        tahunFilter.addEventListener('change', function() { currentPage = 1;
+            renderTable(allData); });
 
         tableHead.addEventListener('click', function(e) {
             const th = e.target.closest('th');
@@ -1203,7 +1401,10 @@
         // ============================================================
         renderTable([]);
         console.log('📊 Analisis Data Lelang siap digunakan.');
-        console.log('📌 Fitur Tooltip: Hover ke tahun rangka yang bermasalah untuk lihat detail no rangka');
+        console.log('📌 Update:');
+        console.log('  - Tahun rangka diambil dari DIGIT KE-10 VIN');
+        console.log('  - Mapping menggunakan VIN Year Code standar internasional');
+        console.log('  - Hover ke tahun rangka untuk lihat detail VIN');
     </script>
 </body>
 </html>
