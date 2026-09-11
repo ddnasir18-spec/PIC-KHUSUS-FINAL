@@ -4,8 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Analisis Data Lelang Mobil</title>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js">
-    </script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -105,7 +104,7 @@
             border-radius: 16px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
             border: 1px solid #e2e8f0;
-            overflow: visible;
+            overflow: hidden;
         }
         .filter-bar {
             display: flex;
@@ -115,7 +114,6 @@
             background: #f8fafc;
             border-bottom: 1px solid #e2e8f0;
             align-items: center;
-            border-radius: 16px 16px 0 0;
         }
         .filter-bar input,
         .filter-bar select {
@@ -135,8 +133,8 @@
         }
         .table-scroll {
             overflow-x: auto;
-            overflow-y: visible;
-            max-height: none;
+            max-height: 650px;
+            overflow-y: auto;
         }
         table {
             width: 100%;
@@ -162,7 +160,7 @@
             background: #e2e8f0;
         }
         td {
-            padding: 8px 6px;
+            padding: 5px 6px;
             border-bottom: 1px solid #f1f5f9;
             vertical-align: middle;
             max-width: 120px;
@@ -245,7 +243,6 @@
             gap: 12px;
             border-top: 1px solid #e2e8f0;
             background: #fafcff;
-            border-radius: 0 0 16px 16px;
         }
         .pagination button {
             background: white;
@@ -311,9 +308,25 @@
             border-radius: 4px;
             display: inline-block;
         }
-        /* ===================================================
-           TOOLTIP dengan posisi DINAMIS
-           =================================================== */
+        .kosong-text {
+            color: #94a3b8;
+            font-style: italic;
+            font-size: 0.6rem;
+        }
+        .trans-detail {
+            font-size: 0.55rem;
+            color: #64748b;
+            display: block;
+        }
+        .unknown-year {
+            color: #6b7280;
+            font-style: italic;
+            font-weight: 600;
+        }
+
+        /* ============================================================
+           TRIGGER (yang di-hover) — tetap di dalam sel
+           ============================================================ */
         .rangka-tooltip {
             position: relative;
             display: inline-block;
@@ -322,7 +335,6 @@
             color: #dc2626;
             text-decoration: underline dotted;
             border-bottom: 2px dotted #dc2626;
-            padding: 2px 0;
         }
         .rangka-tooltip.valid {
             color: #16a34a;
@@ -332,69 +344,74 @@
             color: #6b7280;
             border-bottom-color: #6b7280;
         }
-        .rangka-tooltip .tooltip-box {
-            visibility: hidden;
+
+        /* ============================================================
+           TOOLTIP GLOBAL (position: fixed, di luar tabel)
+           Tidak akan terpotong oleh overflow container manapun
+           ============================================================ */
+        #globalTooltip {
+            position: fixed;
+            z-index: 99999;
             width: 340px;
+            max-width: calc(100vw - 24px);
             background: #1e293b;
             color: #f1f5f9;
-            text-align: left;
             border-radius: 10px;
             padding: 14px 16px;
-            position: absolute;
-            z-index: 1000;
-            opacity: 0;
-            transition: opacity 0.25s ease, visibility 0.25s ease;
             font-size: 0.7rem;
             font-weight: normal;
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-            white-space: normal;
-            word-break: break-all;
             line-height: 1.6;
             pointer-events: none;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.15s ease, visibility 0.15s ease;
+            word-break: break-all;
         }
-        /* Default: tooltip muncul ke ATAS */
-        .rangka-tooltip .tooltip-box.tooltip-up {
-            bottom: 130%;
-            left: 50%;
-            transform: translateX(-50%);
+        #globalTooltip.show {
+            opacity: 1;
+            visibility: visible;
         }
-        .rangka-tooltip .tooltip-box.tooltip-up::after {
+        #globalTooltip::after {
             content: "";
             position: absolute;
-            top: 100%;
-            left: 50%;
+            left: var(--arrow-left, 50%);
             margin-left: -6px;
             border-width: 6px;
             border-style: solid;
+        }
+        /* Panah di bawah (tooltip muncul di atas trigger) */
+        #globalTooltip.arrow-bottom::after {
+            top: 100%;
             border-color: #1e293b transparent transparent transparent;
         }
-        /* Untuk baris pertama: tooltip muncul ke BAWAH */
-        .rangka-tooltip .tooltip-box.tooltip-down {
-            top: 130%;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-        .rangka-tooltip .tooltip-box.tooltip-down::after {
-            content: "";
-            position: absolute;
+        /* Panah di atas (tooltip muncul di bawah trigger) */
+        #globalTooltip.arrow-top::after {
             bottom: 100%;
-            left: 50%;
-            margin-left: -6px;
-            border-width: 6px;
-            border-style: solid;
             border-color: transparent transparent #1e293b transparent;
         }
-        .rangka-tooltip:hover .tooltip-box {
-            visibility: visible;
-            opacity: 1;
+        #globalTooltip .tt-title {
+            margin-bottom: 8px;
+            font-weight: 600;
         }
-        .rangka-tooltip .tooltip-box .label {
+        #globalTooltip .row-detail {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 3px 0;
+            border-bottom: 1px solid #334155;
+        }
+        #globalTooltip .row-detail:last-child {
+            border-bottom: none;
+        }
+        #globalTooltip .label {
             color: #94a3b8;
             font-size: 0.6rem;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            flex-shrink: 0;
         }
-        .rangka-tooltip .tooltip-box .value {
+        #globalTooltip .value {
             color: #f1f5f9;
             font-weight: 600;
             font-family: 'Courier New', monospace;
@@ -403,39 +420,32 @@
             border-radius: 4px;
             display: inline-block;
             margin-top: 2px;
-            max-width: 200px;
-            word-break: break-all;
             text-align: right;
         }
-        .rangka-tooltip .tooltip-box .warning-text {
-            color: #fbbf24;
-            font-weight: 600;
-        }
-        .rangka-tooltip .tooltip-box .row-detail {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 4px 0;
-            border-bottom: 1px solid #334155;
-            gap: 8px;
-        }
-        .rangka-tooltip .tooltip-box .row-detail:last-child {
-            border-bottom: none;
-        }
-        .rangka-tooltip .tooltip-box .highlight {
+        #globalTooltip .highlight {
             color: #4ade80;
             font-weight: 700;
         }
-        .kosong-text {
-            color: #94a3b8;
-            font-style: italic;
-            font-size: 0.6rem;
-        }
-        .unknown-year {
-            color: #6b7280;
-            font-style: italic;
+        #globalTooltip .warning-text {
+            color: #fbbf24;
             font-weight: 600;
         }
+        #globalTooltip .status-warn {
+            color: #fbbf24;
+            font-size: 0.65rem;
+        }
+        #globalTooltip .mapping-note {
+            color: #94a3b8;
+            font-size: 0.6rem;
+        }
+        #globalTooltip .footer-note {
+            margin-top: 6px;
+            font-size: 0.55rem;
+            color: #94a3b8;
+            border-top: 1px solid #334155;
+            padding-top: 6px;
+        }
+
         @media (max-width: 768px) {
             .filter-bar {
                 flex-direction: column;
@@ -451,13 +461,8 @@
                 font-size: 0.75rem;
                 padding: 4px 12px;
             }
-            .rangka-tooltip .tooltip-box {
-                width: 280px;
-                left: 0 !important;
-                transform: none !important;
-            }
-            .rangka-tooltip .tooltip-box::after {
-                left: 20%;
+            #globalTooltip {
+                width: 260px;
             }
         }
     </style>
@@ -562,6 +567,9 @@
         </div>
     </div>
 
+    <!-- Tooltip global (di luar container apapun) -->
+    <div id="globalTooltip"></div>
+
     <script>
         // ============================================================
         // 1. GLOBAL STATE
@@ -583,6 +591,7 @@
         const tahunFilter = document.getElementById('tahunFilter');
         const tableBody = document.getElementById('tableBody');
         const tableHead = document.getElementById('tableHead');
+        const tableScroll = document.getElementById('tableScroll');
         const totalRows = document.getElementById('totalRows');
         const anomaliCount = document.getElementById('anomaliCount');
         const transBedaCount = document.getElementById('transBedaCount');
@@ -590,6 +599,7 @@
         const prevPageBtn = document.getElementById('prevPage');
         const nextPageBtn = document.getElementById('nextPage');
         const pageInfo = document.getElementById('pageInfo');
+        const globalTooltip = document.getElementById('globalTooltip');
 
         let sortKey = 'lot';
         let sortAsc = true;
@@ -598,7 +608,6 @@
         // 2. VIN YEAR CODE MAPPING (Digit ke-10)
         // ============================================================
         const VIN_YEAR_MAP = {
-            // 1980-2000 (Huruf)
             'A': 1980, 'B': 1981, 'C': 1982, 'D': 1983, 'E': 1984,
             'F': 1985, 'G': 1986, 'H': 1987, 'J': 1988, 'K': 1989,
             'L': 1990, 'M': 1991, 'N': 1992, 'P': 1993, 'R': 1994,
@@ -606,6 +615,11 @@
             'Y': 2000,
             '1': 2001, '2': 2002, '3': 2003, '4': 2004, '5': 2005,
             '6': 2006, '7': 2007, '8': 2008, '9': 2009,
+            'A2': 2010, 'B2': 2011, 'C2': 2012, 'D2': 2013, 'E2': 2014,
+            'F2': 2015, 'G2': 2016, 'H2': 2017, 'J2': 2018, 'K2': 2019,
+            'L2': 2020, 'M2': 2021, 'N2': 2022, 'P2': 2023, 'R2': 2024,
+            'S2': 2025, 'T2': 2026, 'V2': 2027, 'W2': 2028, 'X2': 2029,
+            'Y2': 2030,
         };
 
         const VIN_YEAR_MAP_MODERN = {
@@ -620,49 +634,91 @@
 
         function parseYearFromVIN(rangka, tahunDokumen) {
             if (!rangka || typeof rangka !== 'string') return { tahun: null, kode: null, status: 'no_rangka' };
+
             const clean = rangka.replace(/\s/g, '').toUpperCase();
-            if (clean.length < 10) return { tahun: null, kode: null, status: 'rangka_pendek' };
+
+            if (clean.length < 10) {
+                return { tahun: null, kode: null, status: 'rangka_pendek' };
+            }
+
             const kodeTahun = clean.charAt(9);
-            if (!kodeTahun) return { tahun: null, kode: null, status: 'no_kode' };
+
+            if (!kodeTahun) {
+                return { tahun: null, kode: null, status: 'no_kode' };
+            }
 
             let mapping = VIN_YEAR_MAP_MODERN;
             let isModern = true;
-            if (tahunDokumen && tahunDokumen < 2010) {
-                mapping = VIN_YEAR_MAP;
-                isModern = false;
+
+            if (tahunDokumen) {
+                if (tahunDokumen < 2010) {
+                    mapping = VIN_YEAR_MAP;
+                    isModern = false;
+                } else {
+                    mapping = VIN_YEAR_MAP_MODERN;
+                    isModern = true;
+                }
+            } else {
+                mapping = VIN_YEAR_MAP_MODERN;
+                isModern = true;
             }
 
             if (mapping[kodeTahun] !== undefined) {
-                return { tahun: mapping[kodeTahun], kode: kodeTahun, status: 'valid', mapping: isModern ? 'modern' : 'klasik' };
+                return {
+                    tahun: mapping[kodeTahun],
+                    kode: kodeTahun,
+                    status: 'valid',
+                    mapping: isModern ? 'modern' : 'klasik'
+                };
             }
+
             if (isModern && VIN_YEAR_MAP[kodeTahun] !== undefined) {
-                return { tahun: VIN_YEAR_MAP[kodeTahun], kode: kodeTahun, status: 'valid', mapping: 'klasik' };
+                return {
+                    tahun: VIN_YEAR_MAP[kodeTahun],
+                    kode: kodeTahun,
+                    status: 'valid',
+                    mapping: 'klasik'
+                };
             }
+
             if (['I', 'O', 'Q'].includes(kodeTahun)) {
                 return { tahun: null, kode: kodeTahun, status: 'invalid_char' };
             }
+
             return { tahun: null, kode: kodeTahun, status: 'unknown' };
         }
 
         // ============================================================
         // 3. DATA MERK ASIA
         // ============================================================
-        const ASIA_BRANDS = ['TOYOTA', 'HONDA', 'NISSAN', 'MITSUBISHI', 'SUZUKI', 'DAIHATSU', 'MAZDA', 'SUBARU', 'ISUZU',
-            'HINO', 'LEXUS', 'INFINITI', 'ACURA', 'KIA', 'HYUNDAI', 'DAEWOO', 'SSANGYONG', 'KOMATSU', 'HITACHI', 'SANY', 'XCMG',
-            'LIUGONG', 'LIU GONG', 'FOTON', 'SINOTRUK', 'HOWO', 'SHANTUI', 'ZOOMLION', 'CHERY', 'WULING', 'MG', 'PROTON',
-            'PERODUA', 'YANMAR', 'KUBOTA', 'KOBELCO', 'FAW', 'DONGFENG', 'JCB', 'CATERPILLAR', 'VOLVO'
+        const ASIA_BRANDS = [
+            'TOYOTA', 'HONDA', 'NISSAN', 'MITSUBISHI', 'SUZUKI', 'DAIHATSU',
+            'MAZDA', 'SUBARU', 'ISUZU', 'HINO', 'LEXUS', 'INFINITI', 'ACURA',
+            'KIA', 'HYUNDAI', 'DAEWOO', 'SSANGYONG', 'KOMATSU', 'HITACHI',
+            'SANY', 'XCMG', 'LIUGONG', 'LIU GONG', 'FOTON', 'SINOTRUK',
+            'HOWO', 'SHANTUI', 'ZOOMLION', 'CHERY', 'WULING', 'MG',
+            'PROTON', 'PERODUA', 'YANMAR', 'KUBOTA', 'KOBELCO',
+            'FAW', 'DONGFENG', 'JCB', 'CATERPILLAR', 'VOLVO'
         ];
-        const EUROPE_BRANDS = ['BMW', 'MERCEDES', 'MERCEDES BENZ', 'AUDI', 'VW', 'VOLKSWAGEN', 'PORSCHE', 'FORD',
-            'CHEVROLET', 'DODGE', 'CHRYSLER', 'JEEP', 'LAND ROVER', 'RANGE ROVER', 'JAGUAR', 'PEUGEOT', 'CITROEN', 'RENAULT',
-            'OPEL', 'FIAT', 'ALFA ROMEO', 'MASERATI', 'FERRARI', 'LAMBORGHINI', 'BENTLEY', 'ROLLS ROYCE', 'ASTON MARTIN',
+
+        const EUROPE_BRANDS = [
+            'BMW', 'MERCEDES', 'MERCEDES BENZ', 'AUDI', 'VW', 'VOLKSWAGEN',
+            'PORSCHE', 'FORD', 'CHEVROLET', 'DODGE', 'CHRYSLER', 'JEEP',
+            'LAND ROVER', 'RANGE ROVER', 'JAGUAR', 'PEUGEOT', 'CITROEN',
+            'RENAULT', 'OPEL', 'FIAT', 'ALFA ROMEO', 'MASERATI', 'FERRARI',
+            'LAMBORGHINI', 'BENTLEY', 'ROLLS ROYCE', 'ASTON MARTIN',
             'IVECO', 'MAN', 'SCANIA', 'VOLVO TRUCK', 'RENAULT TRUCK'
         ];
 
         function getRegion(merk) {
             const upperMerk = (merk || '').toUpperCase().trim();
             if (!upperMerk) return 'unknown';
-            for (let b of ASIA_BRANDS) { if (upperMerk.includes(b) || b.includes(upperMerk)) return 'asia'; }
-            for (let b of EUROPE_BRANDS) { if (upperMerk.includes(b) || b.includes(upperMerk)) return 'europe'; }
+            for (let b of ASIA_BRANDS) {
+                if (upperMerk.includes(b) || b.includes(upperMerk)) return 'asia';
+            }
+            for (let b of EUROPE_BRANDS) {
+                if (upperMerk.includes(b) || b.includes(upperMerk)) return 'europe';
+            }
             return 'other';
         }
 
@@ -700,12 +756,17 @@
             if (transDok) hasil.push({ sumber: 'Model Dokumen', value: transDok });
             if (transFisik) hasil.push({ sumber: 'Model Fisik', value: transFisik });
             if (transParam) hasil.push({ sumber: 'Trans.', value: transParam });
-            if (hasil.length === 0) return { status: 'unknown', detail: 'Tidak terdeteksi' };
+            if (hasil.length === 0) {
+                return { status: 'unknown', detail: 'Tidak terdeteksi' };
+            }
             const values = hasil.map(h => h.value);
             const uniq = [...new Set(values)];
-            if (uniq.length === 1) return { status: 'sama', value: uniq[0], detail: `Semua: ${uniq[0]}` };
-            const detail = hasil.map(h => `${h.sumber}: ${h.value}`).join(' | ');
-            return { status: 'beda', value: uniq.join('/'), detail: detail };
+            if (uniq.length === 1) {
+                return { status: 'sama', value: uniq[0], detail: `Semua: ${uniq[0]}` };
+            } else {
+                const detail = hasil.map(h => `${h.sumber}: ${h.value}`).join(' | ');
+                return { status: 'beda', value: uniq.join('/'), detail: detail };
+            }
         }
 
         // ============================================================
@@ -723,8 +784,7 @@
             let dokCopy = [...dokChars];
             for (let char of fisikChars) {
                 const idx = dokCopy.indexOf(char);
-                if (idx !== -1) { matchCount++;
-                    dokCopy.splice(idx, 1); }
+                if (idx !== -1) { matchCount++; dokCopy.splice(idx, 1); }
             }
             return (matchCount / fisikChars.length) >= 0.6;
         }
@@ -805,8 +865,7 @@
                 anomali = true;
                 reasons.push('Nama STNK ≠ BPKB');
             }
-            if (note1.toUpperCase().includes('AN PT') && !namaSTNK.toUpperCase().startsWith('PT') && !namaBPKB.toUpperCase()
-                .startsWith('PT')) {
+            if (note1.toUpperCase().includes('AN PT') && !namaSTNK.toUpperCase().startsWith('PT') && !namaBPKB.toUpperCase().startsWith('PT')) {
                 anomali = true;
                 reasons.push('Note "AN PT" tapi nama bukan PT');
             }
@@ -816,9 +875,11 @@
             }
 
             return {
-                merk, modelDok, modelFisik, tahun, noRangka, nopol, namaSTNK, namaBPKB, transDoc, note1,
-                region, isAsia, tahunRangka, kodeTahunVIN, statusVIN, mappingVIN, tahunValid, tahunMismatch,
-                tipeSama, namaSama, namaKosong, anPT, transResult, transSama, transDetail, anomali,
+                merk, modelDok, modelFisik, tahun, noRangka, nopol,
+                namaSTNK, namaBPKB, transDoc, note1, region, isAsia,
+                tahunRangka, kodeTahunVIN, statusVIN, mappingVIN,
+                tahunValid, tahunMismatch, tipeSama, namaSama, namaKosong,
+                anPT, transResult, transSama, transDetail, anomali,
                 reasons: reasons.join('; ')
             };
         }
@@ -827,4 +888,612 @@
         // 7. PROSES EXCEL
         // ============================================================
         function processExcelData(jsonData) {
-            if (!jsonData || jsonData.length < 2
+            if (!jsonData || jsonData.length < 2) return [];
+            const header = jsonData[0];
+            const cleanHeader = header.map(h => String(h || '').trim());
+
+            const findCol = (keywords) => {
+                for (let k of keywords) {
+                    const idx = cleanHeader.findIndex(h => h.toUpperCase() === k.toUpperCase() || h.toUpperCase().includes(k.toUpperCase()));
+                    if (idx !== -1) return idx;
+                }
+                return -1;
+            };
+
+            const colMap = {
+                lot: findCol(['LOT NO', 'LOT']),
+                merk: findCol(['MERK']),
+                modelDok: findCol(['MODEL DOKUMEN', 'MODEL DOK']),
+                modelFisik: findCol(['MODEL FISIK']),
+                tahun: findCol(['TAHUN']),
+                noRangka: findCol(['NO.RANGKA', 'NO RANGKA']),
+                nopol: findCol(['NO POL', 'NO POLISI', 'NOPOL']),
+                namaSTNK: findCol(['NAMA STNK']),
+                namaBPKB: findCol(['Nama BPKB', 'NAMA BPKB']),
+                trans: findCol(['TRANS.', 'TRANS']),
+                note1: findCol(['NOTE 1', 'NOTE']),
+            };
+
+            const rows = [];
+            for (let i = 1; i < jsonData.length; i++) {
+                const row = jsonData[i];
+                if (!row || row.length === 0) continue;
+                if (row.every(cell => !cell || String(cell).trim() === '')) continue;
+
+                const obj = {};
+                if (colMap.lot !== -1) obj['LOT NO'] = row[colMap.lot] || '';
+                if (colMap.merk !== -1) obj['MERK'] = String(row[colMap.merk] || '').trim();
+                if (colMap.modelDok !== -1) obj['MODEL DOKUMEN'] = String(row[colMap.modelDok] || '').trim();
+                if (colMap.modelFisik !== -1) obj['MODEL FISIK'] = String(row[colMap.modelFisik] || '').trim();
+                if (colMap.tahun !== -1) obj['TAHUN'] = row[colMap.tahun] || '';
+                if (colMap.noRangka !== -1) obj['NO.RANGKA'] = String(row[colMap.noRangka] || '').trim();
+                if (colMap.nopol !== -1) obj['NO POL'] = String(row[colMap.nopol] || '').trim();
+                if (colMap.namaSTNK !== -1) obj['NAMA STNK'] = String(row[colMap.namaSTNK] || '').trim();
+                if (colMap.namaBPKB !== -1) obj['Nama BPKB'] = String(row[colMap.namaBPKB] || '').trim();
+                if (colMap.trans !== -1) obj['TRANS.'] = String(row[colMap.trans] || '').trim();
+                if (colMap.note1 !== -1) obj['NOTE 1'] = String(row[colMap.note1] || '').trim();
+
+                if (obj['MERK'] || obj['LOT NO'] || obj['NO.RANGKA']) {
+                    rows.push(obj);
+                }
+            }
+            return rows;
+        }
+
+        // ============================================================
+        // 8. TOOLTIP GLOBAL (position: fixed)
+        // ============================================================
+        let hoverTimer = null;
+
+        function showTooltip(triggerEl) {
+            const html = triggerEl.dataset.tooltipHtml;
+            if (!html) return;
+
+            globalTooltip.innerHTML = html;
+            globalTooltip.classList.add('show');
+
+            // Ukur dulu setelah konten dimasukkan
+            requestAnimationFrame(() => {
+                positionTooltip(triggerEl);
+            });
+        }
+
+        function positionTooltip(triggerEl) {
+            const triggerRect = triggerEl.getBoundingClientRect();
+            const tipRect = globalTooltip.getBoundingClientRect();
+            const margin = 12;
+            const arrowGap = 12;
+
+            // Default: coba tampilkan di atas trigger
+            let tipTop = triggerRect.top - tipRect.height - arrowGap;
+            let placeBelow = false;
+
+            // Jika tidak cukup ruang di atas, tampilkan di bawah
+            if (tipTop < margin) {
+                tipTop = triggerRect.bottom + arrowGap;
+                placeBelow = true;
+            }
+
+            // Jika di bawah juga tidak cukup, pilih yang paling banyak ruang
+            if (placeBelow && tipTop + tipRect.height > window.innerHeight - margin) {
+                const spaceAbove = triggerRect.top;
+                const spaceBelow = window.innerHeight - triggerRect.bottom;
+                if (spaceAbove >= spaceBelow) {
+                    tipTop = Math.max(margin, triggerRect.top - tipRect.height - arrowGap);
+                    placeBelow = false;
+                } else {
+                    tipTop = Math.min(window.innerHeight - tipRect.height - margin, triggerRect.bottom + arrowGap);
+                    placeBelow = true;
+                }
+            }
+
+            // Posisi horizontal: center pada trigger
+            let tipLeft = triggerRect.left + (triggerRect.width / 2) - (tipRect.width / 2);
+
+            // Batasi agar tidak keluar viewport
+            if (tipLeft < margin) tipLeft = margin;
+            if (tipLeft + tipRect.width > window.innerWidth - margin) {
+                tipLeft = window.innerWidth - tipRect.width - margin;
+            }
+
+            // Hitung posisi panah relatif terhadap tooltip
+            const triggerCenter = triggerRect.left + (triggerRect.width / 2);
+            let arrowLeft = triggerCenter - tipLeft;
+            arrowLeft = Math.max(14, Math.min(tipRect.width - 14, arrowLeft));
+
+            globalTooltip.style.top = tipTop + 'px';
+            globalTooltip.style.left = tipLeft + 'px';
+            globalTooltip.style.setProperty('--arrow-left', arrowLeft + 'px');
+
+            globalTooltip.classList.toggle('arrow-bottom', !placeBelow);
+            globalTooltip.classList.toggle('arrow-top', placeBelow);
+        }
+
+        function hideTooltip() {
+            globalTooltip.classList.remove('show');
+        }
+
+        // Event delegation: hover pada elemen .rangka-tooltip
+        document.addEventListener('mouseover', function(e) {
+            const trigger = e.target.closest('.rangka-tooltip');
+            if (!trigger) return;
+            clearTimeout(hoverTimer);
+            hoverTimer = setTimeout(() => showTooltip(trigger), 80);
+        });
+
+        document.addEventListener('mouseout', function(e) {
+            const trigger = e.target.closest('.rangka-tooltip');
+            if (!trigger) return;
+            clearTimeout(hoverTimer);
+            hideTooltip();
+        });
+
+        // Sembunyikan tooltip saat scroll / resize
+        window.addEventListener('scroll', hideTooltip, true);
+        window.addEventListener('resize', hideTooltip);
+        tableScroll.addEventListener('scroll', hideTooltip);
+
+        // ============================================================
+        // 9. BUILDER HTML TOOLTIP (mengembalikan string)
+        // ============================================================
+        function buildValidTooltip(noRangkaDisplay, kodeVIN, tahunRngk, tahunDok, mappingType) {
+            return `
+                <div class="tt-title" style="color:#4ade80;">✅ VIN Year Code Valid</div>
+                <div class="row-detail">
+                    <span class="label">No. Rangka</span>
+                    <span class="value">${noRangkaDisplay}</span>
+                </div>
+                <div class="row-detail">
+                    <span class="label">Digit ke-10</span>
+                    <span class="value">${kodeVIN}</span>
+                </div>
+                <div class="row-detail">
+                    <span class="label">Tahun dari VIN</span>
+                    <span class="highlight">${tahunRngk}</span>
+                </div>
+                <div class="row-detail">
+                    <span class="label">Tahun Dokumen</span>
+                    <span style="color:#f1f5f9;font-weight:600;">${tahunDok}</span>
+                </div>
+                <div class="row-detail" style="border-bottom:none;padding-top:4px;">
+                    <span class="label">Mapping</span>
+                    <span class="mapping-note">${mappingType}</span>
+                </div>
+            `;
+        }
+
+        function buildMismatchTooltip(noRangkaDisplay, kodeVIN, tahunRngk, tahunDok, selisih, mappingType) {
+            return `
+                <div class="tt-title" style="color:#fbbf24;">🔍 Detail VIN Year Code</div>
+                <div class="row-detail">
+                    <span class="label">No. Rangka</span>
+                    <span class="value">${noRangkaDisplay}</span>
+                </div>
+                <div class="row-detail">
+                    <span class="label">Digit ke-10</span>
+                    <span class="value">${kodeVIN}</span>
+                </div>
+                <div class="row-detail">
+                    <span class="label">Tahun dari VIN</span>
+                    <span class="highlight">${tahunRngk}</span>
+                </div>
+                <div class="row-detail">
+                    <span class="label">Tahun Dokumen</span>
+                    <span style="color:#f1f5f9;font-weight:600;">${tahunDok}</span>
+                </div>
+                <div class="row-detail">
+                    <span class="label">Selisih</span>
+                    <span class="warning-text">${selisih} tahun ⚠️</span>
+                </div>
+                <div class="row-detail" style="border-bottom:none;padding-top:4px;">
+                    <span class="label">Mapping</span>
+                    <span class="mapping-note">${mappingType}</span>
+                </div>
+            `;
+        }
+
+        function buildUnknownTooltip(noRangkaDisplay, statusMsg) {
+            return `
+                <div class="tt-title" style="color:#fbbf24;">⚠️ VIN Tidak Terdeteksi</div>
+                <div class="row-detail">
+                    <span class="label">No. Rangka</span>
+                    <span class="value">${noRangkaDisplay}</span>
+                </div>
+                <div class="row-detail">
+                    <span class="label">Status</span>
+                    <span class="status-warn">${statusMsg}</span>
+                </div>
+                <div class="footer-note">
+                    Perlu cek manual no. rangka
+                </div>
+            `;
+        }
+
+        // ============================================================
+        // 10. RENDER
+        // ============================================================
+        function renderTable(data) {
+            const search = searchInput.value.toLowerCase().trim();
+            const statusVal = statusFilter.value;
+            const regionVal = regionFilter.value;
+            const transVal = transFilter.value;
+            const tahunVal = tahunFilter.value;
+
+            filteredData = data.filter(row => {
+                const a = row._analysis || {};
+                const searchable = [
+                    row['MERK'] || '',
+                    row['MODEL DOKUMEN'] || '',
+                    row['MODEL FISIK'] || '',
+                    row['NAMA STNK'] || '',
+                    row['Nama BPKB'] || '',
+                    row['NO POL'] || ''
+                ].join(' ').toLowerCase();
+                if (search && !searchable.includes(search)) return false;
+                if (statusVal === 'ok' && a.anomali) return false;
+                if (statusVal === 'anomali' && !a.anomali) return false;
+                if (regionVal === 'asia' && !a.isAsia) return false;
+                if (regionVal === 'nonasia' && a.isAsia) return false;
+                if (transVal === 'sama' && !a.transSama && a.transResult.status !== 'unknown') return false;
+                if (transVal === 'beda' && a.transSama) return false;
+                if (transVal === 'beda' && a.transResult.status === 'unknown') return false;
+
+                if (tahunVal === 'valid' && !(a.isAsia && a.tahunRangka && !a.tahunMismatch)) return false;
+                if (tahunVal === 'invalid' && !a.tahunMismatch) return false;
+                if (tahunVal === 'unknown' && !(a.isAsia && !a.tahunRangka && a.statusVIN !== 'no_rangka')) return false;
+
+                return true;
+            });
+
+            if (sortKey) {
+                filteredData.sort((a, b) => {
+                    let va, vb;
+                    const ka = a._analysis || {};
+                    const kb = b._analysis || {};
+                    switch (sortKey) {
+                        case 'lot':
+                            va = parseInt(a['LOT NO']) || 0;
+                            vb = parseInt(b['LOT NO']) || 0;
+                            break;
+                        case 'nopol':
+                            va = (a['NO POL'] || '').toLowerCase();
+                            vb = (b['NO POL'] || '').toLowerCase();
+                            break;
+                        case 'region':
+                            va = ka.region || '';
+                            vb = kb.region || '';
+                            break;
+                        case 'merk':
+                            va = (a['MERK'] || '').toLowerCase();
+                            vb = (b['MERK'] || '').toLowerCase();
+                            break;
+                        case 'modelDok':
+                            va = (a['MODEL DOKUMEN'] || '').toLowerCase();
+                            vb = (b['MODEL DOKUMEN'] || '').toLowerCase();
+                            break;
+                        case 'modelFisik':
+                            va = (a['MODEL FISIK'] || '').toLowerCase();
+                            vb = (b['MODEL FISIK'] || '').toLowerCase();
+                            break;
+                        case 'tipeSama':
+                            va = ka.tipeSama ? 1 : 0;
+                            vb = kb.tipeSama ? 1 : 0;
+                            break;
+                        case 'tahun':
+                            va = parseInt(a['TAHUN']) || 0;
+                            vb = parseInt(b['TAHUN']) || 0;
+                            break;
+                        case 'tahunRangka':
+                            va = ka.tahunRangka || 0;
+                            vb = kb.tahunRangka || 0;
+                            break;
+                        case 'transmisi':
+                            va = ka.transSama ? 1 : (ka.transResult.status === 'unknown' ? 2 : 0);
+                            vb = kb.transSama ? 1 : (kb.transResult.status === 'unknown' ? 2 : 0);
+                            break;
+                        case 'namaSTNK':
+                            va = (a['NAMA STNK'] || '').toLowerCase();
+                            vb = (b['NAMA STNK'] || '').toLowerCase();
+                            break;
+                        case 'namaBPKB':
+                            va = (a['Nama BPKB'] || '').toLowerCase();
+                            vb = (b['Nama BPKB'] || '').toLowerCase();
+                            break;
+                        case 'namaSama':
+                            va = ka.namaSama ? 1 : 0;
+                            vb = kb.namaSama ? 1 : 0;
+                            break;
+                        case 'anPT':
+                            va = ka.anPT ? 1 : 0;
+                            vb = kb.anPT ? 1 : 0;
+                            break;
+                        case 'note1':
+                            va = (a['NOTE 1'] || '').toLowerCase();
+                            vb = (b['NOTE 1'] || '').toLowerCase();
+                            break;
+                        default:
+                            va = (a[sortKey] || '').toString().toLowerCase();
+                            vb = (b[sortKey] || '').toString().toLowerCase();
+                    }
+                    if (va < vb) return sortAsc ? -1 : 1;
+                    if (va > vb) return sortAsc ? 1 : -1;
+                    return 0;
+                });
+            }
+
+            totalRows.textContent = filteredData.length;
+            const anom = filteredData.filter(r => r._analysis && r._analysis.anomali).length;
+            anomaliCount.textContent = anom;
+            const transBeda = filteredData.filter(r => r._analysis && !r._analysis.transSama && r._analysis.transResult.status !== 'unknown').length;
+            transBedaCount.textContent = transBeda;
+            const asia = filteredData.filter(r => r._analysis && r._analysis.isAsia).length;
+            asiaCount.textContent = asia;
+
+            const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
+            if (currentPage > totalPages) currentPage = totalPages;
+            const start = (currentPage - 1) * pageSize;
+            const end = Math.min(start + pageSize, filteredData.length);
+            const pageData = filteredData.slice(start, end);
+
+            if (pageData.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="15" class="empty-state"><span class="icon">${filteredData.length === 0 && allData.length > 0 ? '🔍' : '📂'}</span>${filteredData.length === 0 && allData.length > 0 ? 'Tidak ada data yang cocok dengan filter' : 'Upload file Excel untuk memulai analisis'}</td></tr>`;
+            } else {
+                let html = '';
+                pageData.forEach((row) => {
+                    const a = row._analysis || {};
+                    const lot = row['LOT NO'] || '-';
+                    const nopol = row['NO POL'] || '-';
+                    const merk = row['MERK'] || '-';
+                    const modelDok = row['MODEL DOKUMEN'] || '-';
+                    const modelFisik = row['MODEL FISIK'] || '-';
+                    const tahun = row['TAHUN'] || '-';
+                    const namaSTNK = row['NAMA STNK'] || '-';
+                    const namaBPKB = row['Nama BPKB'] || '-';
+                    const note1 = row['NOTE 1'] || '-';
+
+                    const regionBadge = a.isAsia ?
+                        '<span class="badge badge-info">🌏 Asia</span>' :
+                        '<span class="badge badge-europe">🌍 Non-Asia</span>';
+
+                    const tipeBadge = a.tipeSama ?
+                        '<span class="badge badge-success">✅ Sama</span>' :
+                        '<span class="badge badge-danger">❌ Beda</span>';
+
+                    let namaDisplay = namaSTNK;
+                    let namaBPKBDisplay = namaBPKB;
+                    if (a.namaKosong) {
+                        namaDisplay = '<span class="kosong-text">(kosong)</span>';
+                        namaBPKBDisplay = '<span class="kosong-text">(kosong)</span>';
+                    }
+                    const namaBadge = a.namaKosong ?
+                        '<span class="badge badge-secondary">⚪ Kosong</span>' :
+                        a.namaSama ?
+                        '<span class="badge badge-success">✅ Sama</span>' :
+                        '<span class="badge badge-danger">❌ Beda</span>';
+
+                    const ptBadge = a.anPT ?
+                        '<span class="badge badge-pt">🏢 PT</span>' :
+                        '<span class="badge badge-secondary">Non-PT</span>';
+
+                    let transBadge = '-';
+                    if (a.transResult.status === 'sama') {
+                        transBadge = `<span class="badge badge-success">✅ ${a.transResult.value}</span>`;
+                    } else if (a.transResult.status === 'beda') {
+                        transBadge = `<span class="badge badge-danger">❌ Beda</span>`;
+                    } else {
+                        transBadge = `<span class="badge badge-secondary">❓ ?</span>`;
+                    }
+
+                    // ============================================================
+                    // TAHUN RANGKA — tooltip dipindah ke global, HTML disimpan
+                    // di data-tooltip-html
+                    // ============================================================
+                    let tahunRangkaDisplay = '-';
+                    if (a.isAsia) {
+                        if (a.tahunRangka) {
+                            const noRangkaDisplay = a.noRangka || '-';
+                            const tahunDok = a.tahun || '-';
+                            const tahunRngk = a.tahunRangka;
+                            const kodeVIN = a.kodeTahunVIN || '?';
+                            const mappingType = a.mappingVIN === 'modern' ? 'Modern (2010+)' : 'Klasik (1980-2009)';
+
+                            if (a.tahunMismatch) {
+                                const selisih = Math.abs(tahunDok - tahunRngk);
+                                const tipHtml = buildMismatchTooltip(noRangkaDisplay, kodeVIN, tahunRngk, tahunDok, selisih, mappingType);
+                                tahunRangkaDisplay = `<span class="rangka-tooltip" data-tooltip-html="${encodeURIComponent(tipHtml)}">${tahunRngk} ⚠️</span>`;
+                            } else {
+                                const tipHtml = buildValidTooltip(noRangkaDisplay, kodeVIN, tahunRngk, tahunDok, mappingType);
+                                tahunRangkaDisplay = `<span class="rangka-tooltip valid" data-tooltip-html="${encodeURIComponent(tipHtml)}">${tahunRngk} ✅</span>`;
+                            }
+                        } else {
+                            const noRangkaDisplay = a.noRangka || '-';
+                            let statusMsg = 'Tidak dapat menentukan tahun';
+                            if (a.statusVIN === 'rangka_pendek') statusMsg = 'No. Rangka < 10 digit';
+                            else if (a.statusVIN === 'invalid_char') statusMsg = 'Digit ke-10 = I/O/Q (invalid)';
+                            else if (a.statusVIN === 'no_kode') statusMsg = 'Digit ke-10 kosong';
+
+                            const tipHtml = buildUnknownTooltip(noRangkaDisplay, statusMsg);
+                            tahunRangkaDisplay = `<span class="rangka-tooltip unknown" data-tooltip-html="${encodeURIComponent(tipHtml)}">? ⚠️</span>`;
+                        }
+                    }
+
+                    const nopolDisplay = nopol !== '-' ?
+                        `<span class="nopol-cell">${nopol}</span>` :
+                        '-';
+
+                    html += `<tr>
+                        <td><strong>${lot}</strong></td>
+                        <td>${nopolDisplay}</td>
+                        <td>${merk}</td>
+                        <td>${regionBadge}</td>
+                        <td style="max-width:130px;font-size:0.6rem;">${modelDok}</td>
+                        <td style="max-width:130px;font-size:0.6rem;">${modelFisik}</td>
+                        <td>${tipeBadge}</td>
+                        <td>${tahun}</td>
+                        <td>${tahunRangkaDisplay}</td>
+                        <td>${transBadge}</td>
+                        <td style="max-width:100px;font-size:0.6rem;">${namaDisplay}</td>
+                        <td style="max-width:100px;font-size:0.6rem;">${namaBPKBDisplay}</td>
+                        <td>${namaBadge}</td>
+                        <td>${ptBadge}</td>
+                        <td class="note-cell">${note1}</td>
+                    </tr>`;
+                });
+                tableBody.innerHTML = html;
+
+                // Decode data-tooltip-html menjadi properti agar aman dipakai di JS
+                tableBody.querySelectorAll('.rangka-tooltip').forEach(el => {
+                    const encoded = el.getAttribute('data-tooltip-html');
+                    if (encoded) {
+                        el.dataset.tooltipHtml = decodeURIComponent(encoded);
+                        el.removeAttribute('data-tooltip-html');
+                    }
+                });
+            }
+
+            pageInfo.textContent = `Halaman ${currentPage} dari ${totalPages}`;
+            prevPageBtn.disabled = currentPage <= 1;
+            nextPageBtn.disabled = currentPage >= totalPages;
+        }
+
+        // ============================================================
+        // 11. LOAD FILE
+        // ============================================================
+        function loadFile(file) {
+            if (!file) return;
+            allData = [];
+            filteredData = [];
+            currentPage = 1;
+            fileName.textContent = `📄 ${file.name}`;
+            loadingIndicator.classList.add('show');
+            debugInfo.classList.remove('show');
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const firstSheet = workbook.Sheets[firstSheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
+
+                    let debugMsg = `📊 Sheet: ${firstSheetName}\n📋 Total baris: ${jsonData.length}\n`;
+                    if (jsonData.length > 0) {
+                        debugMsg += `📌 Header: ${jsonData[0].slice(0, 15).join(' | ')}...\n`;
+                    }
+
+                    if (jsonData.length < 2) {
+                        alert('File tidak memiliki data yang cukup.');
+                        loadingIndicator.classList.remove('show');
+                        return;
+                    }
+
+                    const rawData = processExcelData(jsonData);
+                    debugMsg += `✅ Data terproses: ${rawData.length} baris\n`;
+
+                    if (rawData.length === 0) {
+                        debugMsg += `⚠️ Tidak ada data yang bisa diproses.\n`;
+                        debugInfo.textContent = debugMsg;
+                        debugInfo.classList.add('show');
+                        loadingIndicator.classList.remove('show');
+                        renderTable([]);
+                        return;
+                    }
+
+                    allData = rawData.map(row => { row._analysis = analyzeRow(row); return row; });
+                    const asiaCountData = allData.filter(r => r._analysis.isAsia).length;
+                    const validVIN = allData.filter(r => r._analysis.isAsia && r._analysis.tahunRangka).length;
+                    const unknownVIN = allData.filter(r => r._analysis.isAsia && !r._analysis.tahunRangka).length;
+
+                    debugMsg += `✅ Analisis selesai.\n`;
+                    debugMsg += `🌏 Merk Asia: ${asiaCountData} unit\n`;
+                    debugMsg += `🌍 Non-Asia: ${allData.length - asiaCountData} unit\n`;
+                    debugMsg += `📅 VIN terdeteksi: ${validVIN} unit\n`;
+                    debugMsg += `❓ VIN tidak terdeteksi: ${unknownVIN} unit`;
+
+                    debugInfo.textContent = debugMsg;
+                    debugInfo.classList.add('show');
+                    loadingIndicator.classList.remove('show');
+                    renderTable(allData);
+
+                } catch (err) {
+                    loadingIndicator.classList.remove('show');
+                    alert('Gagal membaca file: ' + err.message);
+                    console.error(err);
+                    debugInfo.textContent = `❌ Error: ${err.message}`;
+                    debugInfo.classList.add('show');
+                }
+            };
+            reader.onerror = function() {
+                loadingIndicator.classList.remove('show');
+                alert('Gagal membaca file.');
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // ============================================================
+        // 12. EVENT LISTENERS
+        // ============================================================
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) loadFile(file);
+        });
+
+        dropZone.addEventListener('dragover', function(e) { e.preventDefault(); this.classList.add('dragover'); });
+        dropZone.addEventListener('dragleave', function(e) { e.preventDefault(); this.classList.remove('dragover'); });
+        dropZone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                const file = files[0];
+                if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+                    loadFile(file);
+                    const dt = new DataTransfer();
+                    dt.items.add(file);
+                    fileInput.files = dt.files;
+                } else {
+                    alert('Mohon upload file Excel (.xlsx atau .xls)');
+                }
+            }
+        });
+
+        dropZone.addEventListener('click', function(e) {
+            if (e.target.tagName !== 'LABEL' && e.target.tagName !== 'INPUT') {
+                fileInput.click();
+            }
+        });
+
+        searchInput.addEventListener('input', function() { currentPage = 1; renderTable(allData); });
+        statusFilter.addEventListener('change', function() { currentPage = 1; renderTable(allData); });
+        regionFilter.addEventListener('change', function() { currentPage = 1; renderTable(allData); });
+        transFilter.addEventListener('change', function() { currentPage = 1; renderTable(allData); });
+        tahunFilter.addEventListener('change', function() { currentPage = 1; renderTable(allData); });
+
+        tableHead.addEventListener('click', function(e) {
+            const th = e.target.closest('th');
+            if (!th) return;
+            const key = th.dataset.sort;
+            if (!key) return;
+            if (sortKey === key) { sortAsc = !sortAsc; } else { sortKey = key; sortAsc = true; }
+            renderTable(allData);
+        });
+
+        prevPageBtn.addEventListener('click', function() { if (currentPage > 1) { currentPage--; renderTable(allData); } });
+        nextPageBtn.addEventListener('click', function() {
+            const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
+            if (currentPage < totalPages) { currentPage++; renderTable(allData); }
+        });
+
+        // ============================================================
+        // 13. INISIALISASI
+        // ============================================================
+        renderTable([]);
+        console.log('📊 Analisis Data Lelang siap digunakan.');
+        console.log('📌 Update:');
+        console.log('  - Tahun rangka diambil dari DIGIT KE-10 VIN');
+        console.log('  - Mapping menggunakan VIN Year Code standar internasional');
+        console.log('  - Tooltip global (fixed) → tidak terpotong oleh container scroll');
+    </script>
+</body>
+</html>
