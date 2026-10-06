@@ -239,7 +239,7 @@
     <div class="container">
         <h1>📊 Analisis Data Lelang</h1>
         <div class="subtitle">
-            Pengecekan Tahun dari digit ke-10 No.Rangka (VIN Year Code) · Kesesuaian Tipe & CC · Nama STNK vs BPKB · Status PT · Cek Transmisi
+            Pengecekan Tahun dari digit ke-10 No.Rangka (VIN Year Code) · Kesesuaian Tipe & CC (dari kolom CC) · Nama STNK vs BPKB · Status PT · Cek Transmisi
             <span class="filter-info">🌏 Hanya merk Asia (Jepang, China, Korea)</span>
         </div>
 
@@ -490,21 +490,11 @@
         // ============================================================
         // 5. EKSTRAK CC DARI TEKS (liter ↔ cc dengan normalisasi)
         // ============================================================
-        // Mendukung berbagai format:
-        //   "1.3"      → 1300 cc
-        //   "1,5"      → 1500 cc
-        //   "1300"     → 1300 cc
-        //   "1495CC"   → 1495 cc
-        //   "1500 CC"  → 1500 cc
-        //   "2.5"      → 2500 cc
-        //   "2500CC"   → 2500 cc
-        //   "2000cc"   → 2000 cc
         function extractCC(text) {
             if (!text) return null;
             const upper = String(text).toUpperCase().replace(',', '.');
 
-            // ---- Pola 1: Angka eksplisit + "CC" (paling akurat) ----
-            // Contoh: "1495CC", "1500 CC", "1300cc", "2000 CC"
+            // Pola 1: Angka eksplisit + "CC" (paling akurat)
             const ccExplicitRegex = /(\d{3,5})\s*CC\b/;
             const ccExplicitMatch = upper.match(ccExplicitRegex);
             if (ccExplicitMatch) {
@@ -512,9 +502,7 @@
                 if (val >= 600 && val <= 9999) return val;
             }
 
-            // ---- Pola 2: Angka desimal (liter) → konversi ke cc ----
-            // Contoh: "1.3", "1.5", "2.5", "1.0"
-            // Negative lookbehind/lookahead supaya tidak salah tangkap "1.35" atau "10.5"
+            // Pola 2: Angka desimal (liter) → konversi ke cc
             const literRegex = /(?<![.\d])(\d)\.(\d)(?![.\d])/;
             const literMatch = upper.match(literRegex);
             if (literMatch) {
@@ -524,9 +512,7 @@
                 }
             }
 
-            // ---- Pola 3: Angka ribuan tanpa "CC" (fallback) ----
-            // Contoh: "1300", "1500", "2500"
-            // Filter range wajar CC mobil: 600-9999
+            // Pola 3: Angka ribuan tanpa "CC" (fallback)
             const ribuanRegex = /(?<!\d)(\d{3,4})(?!\d)/g;
             let match;
             while ((match = ribuanRegex.exec(upper)) !== null) {
@@ -535,48 +521,68 @@
                     return val;
                 }
             }
-
             return null;
         }
 
         // ============================================================
-        // 6. CEK TIPE (CC + VARIAN + FALLBACK CHAR MATCH)
+        // 6. CEK TIPE — UTAMA BANDINGKAN CC FISIK VS CC EXCEL
         // ============================================================
-        function isTipeSamaLonggar(modelDok, modelFisik) {
+        // Parameter:
+        //   modelDok       : string model dokumen
+        //   modelFisik     : string model fisik
+        //   ccExcel        : angka CC dari kolom Excel (AF) — pembanding UTAMA
+        //   ccFisik        : angka CC hasil ekstraksi dari model fisik
+        //
+        // Logika:
+        //   1. Jika ccExcel & ccFisik ada → bandingkan, toleransi ±100cc
+        //   2. Jika salah satu null → fallback ke Model Fisik vs Model Dokumen
+        //      dengan character matching (threshold 60%)
+        function isTipeSamaLonggar(modelDok, modelFisik, ccExcel, ccFisik) {
             if (!modelDok || !modelFisik) return false;
 
             const dok = modelDok.toUpperCase();
             const fisik = modelFisik.toUpperCase();
 
-            // ---- LANGKAH 1: Bandingkan CC dengan normalisasi & toleransi ----
-            const ccDok = extractCC(dok);
-            const ccFisik = extractCC(fisik);
-
-            // Toleransi ±100cc (karena pembulatan liter ke ribuan)
-            // Contoh: fisik "1.5" (=1500cc) vs dokumen "1495CC" → selisih 5cc → SAMA
-            // Contoh: fisik "1.3" (=1300cc) vs dokumen "1500CC" → selisih 200cc → BEDA
             const CC_TOLERANCE = 100;
-            if (ccDok !== null && ccFisik !== null) {
-                const selisih = Math.abs(ccDok - ccFisik);
+
+            // ---- LANGKAH 1: Bandingkan CC Excel vs CC Fisik (PRIORITAS UTAMA) ----
+            if (ccExcel !== null && ccFisik !== null) {
+                const selisih = Math.abs(ccExcel - ccFisik);
                 if (selisih > CC_TOLERANCE) {
-                    console.log(`❌ CC beda: dok="${ccDok}cc" vs fisik="${ccFisik}cc" (selisih ${selisih}cc)`);
+                    console.log(`❌ CC beda: Excel="${ccExcel}cc" vs Fisik="${ccFisik}cc" (Δ${selisih})`);
                     return false;
-                } else {
-                    console.log(`✅ CC cocok: dok="${ccDok}cc" vs fisik="${ccFisik}cc" (selisih ${selisih}cc)`);
+                }
+                console.log(`✅ CC cocok: Excel="${ccExcel}cc" vs Fisik="${ccFisik}cc" (Δ${selisih})`);
+                // CC cocok → lanjut cek varian
+                const varianRegex = /\b\d+[.,]\d+\s+([A-Z])\b/;
+                const varianDok = (dok.match(varianRegex) || [])[1];
+                const varianFisik = (fisik.match(varianRegex) || [])[1];
+                if (varianDok && varianFisik && varianDok !== varianFisik) {
+                    return false;
+                }
+                return true;
+            }
+
+            // ---- LANGKAH 2: Fallback — bandingkan model fisik vs model dokumen ----
+            // (dipakai kalau ccExcel atau ccFisik tidak terdeteksi)
+            const ccDokFallback = extractCC(dok);
+            if (ccDokFallback !== null && ccFisik !== null) {
+                const selisih = Math.abs(ccDokFallback - ccFisik);
+                if (selisih > CC_TOLERANCE) {
+                    console.log(`❌ CC beda (fallback): Dok="${ccDokFallback}cc" vs Fisik="${ccFisik}cc"`);
+                    return false;
                 }
             }
 
-            // ---- LANGKAH 2: Cek varian (huruf setelah CC) ----
-            // Contoh: "1.3 G" vs "1.3 E" → varian beda → BEDA
+            // Cek varian
             const varianRegex = /\b\d+[.,]\d+\s+([A-Z])\b/;
             const varianDok = (dok.match(varianRegex) || [])[1];
             const varianFisik = (fisik.match(varianRegex) || [])[1];
             if (varianDok && varianFisik && varianDok !== varianFisik) {
-                console.log(`❌ Varian beda: dok="${varianDok}" vs fisik="${varianFisik}"`);
                 return false;
             }
 
-            // ---- LANGKAH 3: Character matching (fallback) threshold 75% ----
+            // Character matching dengan threshold 60%
             const dokClean = dok.replace(/\s/g, '');
             const fisikClean = fisik.replace(/\s/g, '');
             if (!dokClean || !fisikClean) return false;
@@ -596,7 +602,7 @@
             }
 
             const rasio = matchCount / fisikChars.length;
-            return rasio >= 0.75;
+            return rasio >= 0.60;
         }
 
         // ============================================================
@@ -614,6 +620,10 @@
             const transDoc = String(row['TRANS.'] || row['TRANS'] || '').trim();
             const note1 = String(row['NOTE 1'] || '').trim();
             const lot = String(row['LOT'] || '').trim();
+            // ===== KOLOM BARU DARI EXCEL =====
+            const ccExcelRaw = row['CC'];
+            const ccExcel = ccExcelRaw !== undefined && ccExcelRaw !== '' ? parseInt(ccExcelRaw) : null;
+            const fuelType = String(row['FUEL TYPE'] || '').trim();
 
             const region = getRegion(merk);
             const isAsia = region === 'asia';
@@ -634,16 +644,37 @@
                 }
             }
 
-            const ccDok = extractCC(modelDok);
-            const ccFisik = extractCC(modelFisik);
+            // ============================================================
+            // CEK CC — Prioritaskan kolom CC dari Excel
+            // ============================================================
+            const ccFisik = extractCC(modelFisik);   // hasil ekstraksi dari Model Fisik
+            const ccDok = extractCC(modelDok);       // fallback dari Model Dokumen
+
             let ccStatus = 'unknown';
             let ccSelisih = null;
-            if (ccDok !== null && ccFisik !== null) {
-                ccSelisih = Math.abs(ccDok - ccFisik);
+            let ccDisplay = '—';
+            let ccSumber = '';
+
+            if (ccExcel !== null && ccFisik !== null) {
+                ccSelisih = Math.abs(ccExcel - ccFisik);
                 ccStatus = ccSelisih <= 100 ? 'sama' : 'beda';
+                ccDisplay = ccFisik + 'cc';
+                ccSumber = 'Excel';
+            } else if (ccFisik !== null) {
+                ccStatus = 'partial';
+                ccDisplay = ccFisik + 'cc';
+                ccSumber = 'Fisik';
+            } else if (ccExcel !== null) {
+                ccStatus = 'partial';
+                ccDisplay = ccExcel + 'cc';
+                ccSumber = 'Excel';
+            } else if (ccDok !== null) {
+                ccStatus = 'partial';
+                ccDisplay = ccDok + 'cc';
+                ccSumber = 'Dok';
             }
 
-            const tipeSama = isTipeSamaLonggar(modelDok, modelFisik);
+            const tipeSama = isTipeSamaLonggar(modelDok, modelFisik, ccExcel, ccFisik);
 
             let namaSama = true, namaKosong = false;
             if (!namaSTNK && !namaBPKB) { namaKosong = true; namaSama = true; }
@@ -663,7 +694,7 @@
             if (!tipeSama && modelDok && modelFisik) {
                 anomali = true;
                 let reason = 'Tipe berbeda';
-                if (ccStatus === 'beda') reason += ` (CC: ${ccDok}cc vs ${ccFisik}cc)`;
+                if (ccStatus === 'beda') reason += ` (CC: Excel ${ccExcel}cc vs Fisik ${ccFisik}cc)`;
                 reasons.push(reason);
             }
             if (!namaSama && namaSTNK && namaBPKB) { anomali = true; reasons.push('Nama STNK ≠ BPKB'); }
@@ -678,7 +709,7 @@
                 lot, merk, modelDok, modelFisik, tahun, noRangka, nopol, namaSTNK, namaBPKB, transDoc, note1,
                 region, isAsia, tahunRangka, kodeTahunVIN, statusVIN, mappingVIN, tahunValid, tahunMismatch,
                 tipeSama, namaSama, namaKosong, anPT, transResult, transSama, transDetail, anomali,
-                ccDok, ccFisik, ccStatus, ccSelisih,
+                ccExcel, ccFisik, ccDok, ccStatus, ccSelisih, ccDisplay, ccSumber, fuelType,
                 reasons: reasons.join('; ')
             };
         }
@@ -788,8 +819,8 @@
                     case 'modelDok': va = a.modelDok || ''; vb = b.modelDok || ''; break;
                     case 'modelFisik': va = a.modelFisik || ''; vb = b.modelFisik || ''; break;
                     case 'ccInfo':
-                        va = a.ccFisik !== null ? a.ccFisik : (a.ccDok !== null ? a.ccDok : -1);
-                        vb = b.ccFisik !== null ? b.ccFisik : (b.ccDok !== null ? b.ccDok : -1);
+                        va = a.ccFisik !== null ? a.ccFisik : (a.ccExcel !== null ? a.ccExcel : -1);
+                        vb = b.ccFisik !== null ? b.ccFisik : (b.ccExcel !== null ? b.ccExcel : -1);
                         break;
                     case 'tipeSama': va = a.tipeSama ? '1' : '0'; vb = b.tipeSama ? '1' : '0'; break;
                     case 'tahun': va = a.tahun || 0; vb = b.tahun || 0; break;
@@ -860,18 +891,15 @@
 
                 // ---- Badge CC ----
                 let ccHtml;
-                if (d.ccDok === null && d.ccFisik === null) {
-                    ccHtml = '<span class="badge badge-unknown">—</span>';
-                } else if (d.ccDok !== null && d.ccFisik !== null) {
-                    if (d.ccStatus === 'sama') {
-                        const selisihInfo = d.ccSelisih > 0 ? ` (Δ${d.ccSelisih})` : '';
-                        ccHtml = `<span class="badge badge-cc">✅ ${d.ccFisik}cc${selisihInfo}</span>`;
-                    } else {
-                        ccHtml = `<span class="badge badge-danger">❌ ${d.ccDok}≠${d.ccFisik}cc</span>`;
-                    }
+                if (d.ccStatus === 'sama') {
+                    const selisihInfo = d.ccSelisih > 0 ? ` (Δ${d.ccSelisih})` : '';
+                    ccHtml = `<span class="badge badge-cc" title="CC Excel: ${d.ccExcel}cc | CC Fisik: ${d.ccFisik}cc">✅ ${d.ccDisplay}${selisihInfo}</span>`;
+                } else if (d.ccStatus === 'beda') {
+                    ccHtml = `<span class="badge badge-danger" title="CC Excel: ${d.ccExcel}cc | CC Fisik: ${d.ccFisik}cc">❌ ${d.ccExcel}≠${d.ccFisik}cc</span>`;
+                } else if (d.ccStatus === 'partial') {
+                    ccHtml = `<span class="badge badge-warning" title="Sumber: ${d.ccSumber}">⚠️ ${d.ccDisplay}</span>`;
                 } else {
-                    const val = d.ccFisik !== null ? d.ccFisik : d.ccDok;
-                    ccHtml = `<span class="badge badge-warning">⚠️ ${val}cc</span>`;
+                    ccHtml = '<span class="badge badge-unknown">—</span>';
                 }
 
                 let tahunRangkaHtml;
