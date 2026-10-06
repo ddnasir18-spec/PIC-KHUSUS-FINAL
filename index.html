@@ -131,6 +131,7 @@
         .badge-nopol { background: #c7d2fe; color: #3730a3; }
         .badge-trans { background: #fef3c7; color: #92400e; }
         .badge-unknown { background: #f3f4f6; color: #6b7280; }
+        .badge-cc { background: #f0fdf4; color: #14532d; border: 1px solid #86efac; }
         .note-cell {
             max-width: 150px; white-space: pre-wrap;
             word-break: break-word; font-size: 0.58rem;
@@ -238,7 +239,7 @@
     <div class="container">
         <h1>📊 Analisis Data Lelang</h1>
         <div class="subtitle">
-            Pengecekan Tahun dari digit ke-10 No.Rangka (VIN Year Code) · Kesesuaian Tipe · Nama STNK vs BPKB · Status PT · Cek Transmisi
+            Pengecekan Tahun dari digit ke-10 No.Rangka (VIN Year Code) · Kesesuaian Tipe & CC · Nama STNK vs BPKB · Status PT · Cek Transmisi
             <span class="filter-info">🌏 Hanya merk Asia (Jepang, China, Korea)</span>
         </div>
 
@@ -311,6 +312,7 @@
                             <th data-sort="region">Region <span class="sort-indicator">↕</span></th>
                             <th data-sort="modelDok">Model Dokumen <span class="sort-indicator">↕</span></th>
                             <th data-sort="modelFisik">Model Fisik <span class="sort-indicator">↕</span></th>
+                            <th data-sort="ccInfo">CC <span class="sort-indicator">↕</span></th>
                             <th data-sort="tipeSama">Tipe Sama <span class="sort-indicator">↕</span></th>
                             <th data-sort="tahun">Tahun <span class="sort-indicator">↕</span></th>
                             <th data-sort="tahunRangka">Tahun Rangka <span class="sort-indicator">↕</span></th>
@@ -324,7 +326,7 @@
                     </thead>
                     <tbody id="tableBody">
                         <tr>
-                            <td colspan="15" class="empty-state">
+                            <td colspan="16" class="empty-state">
                                 <span class="icon">📂</span>
                                 Upload file Excel untuk memulai analisis
                             </td>
@@ -486,7 +488,59 @@
         }
 
         // ============================================================
-        // 5. CEK TIPE (DIPERBAIKI — CEK CC & VARIAN EKSPLISIT)
+        // 5. EKSTRAK CC DARI TEKS (liter ↔ cc dengan normalisasi)
+        // ============================================================
+        // Mendukung berbagai format:
+        //   "1.3"      → 1300 cc
+        //   "1,5"      → 1500 cc
+        //   "1300"     → 1300 cc
+        //   "1495CC"   → 1495 cc
+        //   "1500 CC"  → 1500 cc
+        //   "2.5"      → 2500 cc
+        //   "2500CC"   → 2500 cc
+        //   "2000cc"   → 2000 cc
+        function extractCC(text) {
+            if (!text) return null;
+            const upper = String(text).toUpperCase().replace(',', '.');
+
+            // ---- Pola 1: Angka eksplisit + "CC" (paling akurat) ----
+            // Contoh: "1495CC", "1500 CC", "1300cc", "2000 CC"
+            const ccExplicitRegex = /(\d{3,5})\s*CC\b/;
+            const ccExplicitMatch = upper.match(ccExplicitRegex);
+            if (ccExplicitMatch) {
+                const val = parseInt(ccExplicitMatch[1]);
+                if (val >= 600 && val <= 9999) return val;
+            }
+
+            // ---- Pola 2: Angka desimal (liter) → konversi ke cc ----
+            // Contoh: "1.3", "1.5", "2.5", "1.0"
+            // Negative lookbehind/lookahead supaya tidak salah tangkap "1.35" atau "10.5"
+            const literRegex = /(?<![.\d])(\d)\.(\d)(?![.\d])/;
+            const literMatch = upper.match(literRegex);
+            if (literMatch) {
+                const liter = parseFloat(`${literMatch[1]}.${literMatch[2]}`);
+                if (liter >= 0.6 && liter <= 9.9) {
+                    return Math.round(liter * 1000);
+                }
+            }
+
+            // ---- Pola 3: Angka ribuan tanpa "CC" (fallback) ----
+            // Contoh: "1300", "1500", "2500"
+            // Filter range wajar CC mobil: 600-9999
+            const ribuanRegex = /(?<!\d)(\d{3,4})(?!\d)/g;
+            let match;
+            while ((match = ribuanRegex.exec(upper)) !== null) {
+                const val = parseInt(match[1]);
+                if (val >= 600 && val <= 9999) {
+                    return val;
+                }
+            }
+
+            return null;
+        }
+
+        // ============================================================
+        // 6. CEK TIPE (CC + VARIAN + FALLBACK CHAR MATCH)
         // ============================================================
         function isTipeSamaLonggar(modelDok, modelFisik) {
             if (!modelDok || !modelFisik) return false;
@@ -494,41 +548,35 @@
             const dok = modelDok.toUpperCase();
             const fisik = modelFisik.toUpperCase();
 
-            // ============================================================
-            // LANGKAH 1: Cek kapasitas mesin (CC) — INI YANG PALING KRUSIAL
-            // ============================================================
-            // Regex menangkap pola seperti "1.0", "1.2", "1.5", "2.0", "1500CC", "1500 CC"
-            const ccRegex = /\b(\d+[.,]\d+|\d{3,4}\s*CC)\b/g;
+            // ---- LANGKAH 1: Bandingkan CC dengan normalisasi & toleransi ----
+            const ccDok = extractCC(dok);
+            const ccFisik = extractCC(fisik);
 
-            const ccDok = (dok.match(ccRegex) || []).map(s => s.replace(',', '.').replace(/\s*CC/i, ''));
-            const ccFisik = (fisik.match(ccRegex) || []).map(s => s.replace(',', '.').replace(/\s*CC/i, ''));
-
-            // Jika keduanya punya info CC dan berbeda → LANGSUNG BEDA
-            if (ccDok.length > 0 && ccFisik.length > 0) {
-                const ccDokNorm = ccDok[0];
-                const ccFisikNorm = ccFisik[0];
-                if (ccDokNorm !== ccFisikNorm) {
-                    console.log(`CC beda: dok="${ccDokNorm}" vs fisik="${ccFisikNorm}"`);
-                    return false; // 1.0 vs 1.2 → BEDA
+            // Toleransi ±100cc (karena pembulatan liter ke ribuan)
+            // Contoh: fisik "1.5" (=1500cc) vs dokumen "1495CC" → selisih 5cc → SAMA
+            // Contoh: fisik "1.3" (=1300cc) vs dokumen "1500CC" → selisih 200cc → BEDA
+            const CC_TOLERANCE = 100;
+            if (ccDok !== null && ccFisik !== null) {
+                const selisih = Math.abs(ccDok - ccFisik);
+                if (selisih > CC_TOLERANCE) {
+                    console.log(`❌ CC beda: dok="${ccDok}cc" vs fisik="${ccFisik}cc" (selisih ${selisih}cc)`);
+                    return false;
+                } else {
+                    console.log(`✅ CC cocok: dok="${ccDok}cc" vs fisik="${ccFisik}cc" (selisih ${selisih}cc)`);
                 }
             }
 
-            // ============================================================
-            // LANGKAH 2: Cek tipe varian (X, G, E, V, dll) setelah CC
-            // ============================================================
-            // Contoh: "1.0 X" vs "1.2 X" → CC beda (sudah ketangkep di atas)
-            // Contoh: "1.0 X" vs "1.0 G" → varian beda
+            // ---- LANGKAH 2: Cek varian (huruf setelah CC) ----
+            // Contoh: "1.3 G" vs "1.3 E" → varian beda → BEDA
             const varianRegex = /\b\d+[.,]\d+\s+([A-Z])\b/;
             const varianDok = (dok.match(varianRegex) || [])[1];
             const varianFisik = (fisik.match(varianRegex) || [])[1];
             if (varianDok && varianFisik && varianDok !== varianFisik) {
-                console.log(`Varian beda: dok="${varianDok}" vs fisik="${varianFisik}"`);
+                console.log(`❌ Varian beda: dok="${varianDok}" vs fisik="${varianFisik}"`);
                 return false;
             }
 
-            // ============================================================
-            // LANGKAH 3: Character matching (fallback) dengan threshold lebih tinggi
-            // ============================================================
+            // ---- LANGKAH 3: Character matching (fallback) threshold 75% ----
             const dokClean = dok.replace(/\s/g, '');
             const fisikClean = fisik.replace(/\s/g, '');
             if (!dokClean || !fisikClean) return false;
@@ -548,12 +596,11 @@
             }
 
             const rasio = matchCount / fisikChars.length;
-            // Naikkan threshold dari 0.6 → 0.75 agar lebih ketat
             return rasio >= 0.75;
         }
 
         // ============================================================
-        // 6. FUNGSI ANALISIS UTAMA
+        // 7. FUNGSI ANALISIS UTAMA
         // ============================================================
         function analyzeRow(row) {
             const merk = String(row['MERK'] || '').trim();
@@ -587,6 +634,15 @@
                 }
             }
 
+            const ccDok = extractCC(modelDok);
+            const ccFisik = extractCC(modelFisik);
+            let ccStatus = 'unknown';
+            let ccSelisih = null;
+            if (ccDok !== null && ccFisik !== null) {
+                ccSelisih = Math.abs(ccDok - ccFisik);
+                ccStatus = ccSelisih <= 100 ? 'sama' : 'beda';
+            }
+
             const tipeSama = isTipeSamaLonggar(modelDok, modelFisik);
 
             let namaSama = true, namaKosong = false;
@@ -604,7 +660,12 @@
 
             let anomali = false, reasons = [];
             if (isAsia && tahunMismatch) { anomali = true; reasons.push(`Tahun mismatch (${tahun} vs ${tahunRangka})`); }
-            if (!tipeSama && modelDok && modelFisik) { anomali = true; reasons.push('Tipe berbeda'); }
+            if (!tipeSama && modelDok && modelFisik) {
+                anomali = true;
+                let reason = 'Tipe berbeda';
+                if (ccStatus === 'beda') reason += ` (CC: ${ccDok}cc vs ${ccFisik}cc)`;
+                reasons.push(reason);
+            }
             if (!namaSama && namaSTNK && namaBPKB) { anomali = true; reasons.push('Nama STNK ≠ BPKB'); }
             if (note1.toUpperCase().includes('AN PT') && !namaSTNK.toUpperCase().startsWith('PT') && !namaBPKB.toUpperCase().startsWith('PT')) {
                 anomali = true; reasons.push('Note "AN PT" tapi nama bukan PT');
@@ -617,12 +678,13 @@
                 lot, merk, modelDok, modelFisik, tahun, noRangka, nopol, namaSTNK, namaBPKB, transDoc, note1,
                 region, isAsia, tahunRangka, kodeTahunVIN, statusVIN, mappingVIN, tahunValid, tahunMismatch,
                 tipeSama, namaSama, namaKosong, anPT, transResult, transSama, transDetail, anomali,
+                ccDok, ccFisik, ccStatus, ccSelisih,
                 reasons: reasons.join('; ')
             };
         }
 
         // ============================================================
-        // 7. PROSES EXCEL
+        // 8. PROSES EXCEL
         // ============================================================
         function processExcelData(jsonData) {
             if (!jsonData || jsonData.length < 2) {
@@ -657,7 +719,7 @@
         }
 
         // ============================================================
-        // 8. FILTER & SORTING
+        // 9. FILTER & SORTING
         // ============================================================
         function applyFilters() {
             const q = searchInput.value.toLowerCase().trim();
@@ -725,6 +787,10 @@
                     case 'region': va = a.region || ''; vb = b.region || ''; break;
                     case 'modelDok': va = a.modelDok || ''; vb = b.modelDok || ''; break;
                     case 'modelFisik': va = a.modelFisik || ''; vb = b.modelFisik || ''; break;
+                    case 'ccInfo':
+                        va = a.ccFisik !== null ? a.ccFisik : (a.ccDok !== null ? a.ccDok : -1);
+                        vb = b.ccFisik !== null ? b.ccFisik : (b.ccDok !== null ? b.ccDok : -1);
+                        break;
                     case 'tipeSama': va = a.tipeSama ? '1' : '0'; vb = b.tipeSama ? '1' : '0'; break;
                     case 'tahun': va = a.tahun || 0; vb = b.tahun || 0; break;
                     case 'tahunRangka': va = a.tahunRangka || 0; vb = b.tahunRangka || 0; break;
@@ -747,7 +813,7 @@
         }
 
         // ============================================================
-        // 9. RENDER TABLE
+        // 10. RENDER TABLE
         // ============================================================
         function renderTable() {
             const total = filteredData.length;
@@ -758,7 +824,7 @@
             const pageData = filteredData.slice(start, end);
 
             if (total === 0) {
-                tableBody.innerHTML = `<tr><td colspan="15" class="empty-state">
+                tableBody.innerHTML = `<tr><td colspan="16" class="empty-state">
                     <span class="icon">🔍</span>Tidak ada data yang cocok dengan filter.
                 </td></tr>`;
                 pageInfo.textContent = 'Halaman 0 dari 0';
@@ -791,6 +857,22 @@
                 const tipeBadge = d.tipeSama
                     ? '<span class="badge badge-success">✅ Sama</span>'
                     : '<span class="badge badge-danger">❌ Beda</span>';
+
+                // ---- Badge CC ----
+                let ccHtml;
+                if (d.ccDok === null && d.ccFisik === null) {
+                    ccHtml = '<span class="badge badge-unknown">—</span>';
+                } else if (d.ccDok !== null && d.ccFisik !== null) {
+                    if (d.ccStatus === 'sama') {
+                        const selisihInfo = d.ccSelisih > 0 ? ` (Δ${d.ccSelisih})` : '';
+                        ccHtml = `<span class="badge badge-cc">✅ ${d.ccFisik}cc${selisihInfo}</span>`;
+                    } else {
+                        ccHtml = `<span class="badge badge-danger">❌ ${d.ccDok}≠${d.ccFisik}cc</span>`;
+                    }
+                } else {
+                    const val = d.ccFisik !== null ? d.ccFisik : d.ccDok;
+                    ccHtml = `<span class="badge badge-warning">⚠️ ${val}cc</span>`;
+                }
 
                 let tahunRangkaHtml;
                 if (!d.isAsia) {
@@ -835,6 +917,7 @@
                     <td>${regionBadge}</td>
                     <td>${escapeHtml(d.modelDok) || '-'}</td>
                     <td>${escapeHtml(d.modelFisik) || '-'}</td>
+                    <td>${ccHtml}</td>
                     <td>${tipeBadge}</td>
                     <td>${d.tahun || '-'}</td>
                     <td>${tahunRangkaHtml}</td>
@@ -872,7 +955,7 @@
         }
 
         // ============================================================
-        // 10. EVENT LISTENERS
+        // 11. EVENT LISTENERS
         // ============================================================
         tableHead.addEventListener('click', function(e) {
             const th = e.target.closest('th[data-sort]');
