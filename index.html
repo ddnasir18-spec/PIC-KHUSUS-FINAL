@@ -55,7 +55,6 @@
             display: flex; align-items: center; gap: 6px;
             font-weight: 500; font-size: 0.85rem;
         }
-        /* ===== TAMBAHAN: Search Nopol khusus ===== */
         .nopol-search-box {
             display: flex; align-items: center; gap: 6px;
             background: #eff6ff; border: 1.5px solid #3b82f6;
@@ -82,18 +81,13 @@
         }
         .nopol-search-box .clear-nopol.show { display: flex; }
         .nopol-search-box .clear-nopol:hover { background: #2563eb; }
-        .nopol-search-box .icon-nopol {
-            font-size: 0.9rem; color: #3b82f6;
-        }
-        /* ===== Badge prioritas hasil pencarian nopol ===== */
+        .nopol-search-box .icon-nopol { font-size: 0.9rem; color: #3b82f6; }
         .row-priority td {
             background: #fef9c3 !important;
             border-top: 2px solid #facc15 !important;
             border-bottom: 2px solid #facc15 !important;
         }
-        .row-priority:hover td {
-            background: #fef08a !important;
-        }
+        .row-priority:hover td { background: #fef08a !important; }
         .priority-label {
             display: inline-block; background: #facc15; color: #78350f;
             font-size: 0.55rem; font-weight: 700; padding: 1px 6px;
@@ -111,7 +105,6 @@
             cursor: pointer; user-select: none; font-size: 0.65rem;
         }
         th:hover { background: #e2e8f0; }
-        /* ===== TAMBAHAN: indikator sorting ===== */
         th .sort-indicator {
             display: inline-block; margin-left: 4px; font-size: 0.6rem;
             color: #94a3b8; transition: 0.15s;
@@ -270,7 +263,6 @@
 
         <div class="table-wrapper">
             <div class="filter-bar">
-                <!-- ===== TAMBAHAN: Kotak pencarian NOPOL khusus ===== -->
                 <div class="nopol-search-box">
                     <span class="icon-nopol">🔎</span>
                     <input type="text" id="nopolSearchInput" placeholder="Cari NOPOL (contoh: B 1234 XYZ)" />
@@ -376,13 +368,11 @@
         const prevPageBtn = document.getElementById('prevPage');
         const nextPageBtn = document.getElementById('nextPage');
         const pageInfo = document.getElementById('pageInfo');
-        // ===== TAMBAHAN: elemen pencarian NOPOL =====
         const nopolSearchInput = document.getElementById('nopolSearchInput');
         const clearNopolBtn = document.getElementById('clearNopolBtn');
 
         let sortKey = 'lot';
         let sortAsc = true;
-        // ===== TAMBAHAN: state khusus pencarian nopol =====
         let activeNopolQuery = '';
 
         // ============================================================
@@ -496,23 +486,70 @@
         }
 
         // ============================================================
-        // 5. CEK TIPE LONGGAR
+        // 5. CEK TIPE (DIPERBAIKI — CEK CC & VARIAN EKSPLISIT)
         // ============================================================
         function isTipeSamaLonggar(modelDok, modelFisik) {
             if (!modelDok || !modelFisik) return false;
-            const dok = modelDok.toUpperCase().replace(/\s/g, '');
-            const fisik = modelFisik.toUpperCase().replace(/\s/g, '');
-            if (!dok || !fisik) return false;
-            let dokChars = dok.split('').filter(c => c.match(/[A-Z0-9]/));
-            let fisikChars = fisik.split('').filter(c => c.match(/[A-Z0-9]/));
+
+            const dok = modelDok.toUpperCase();
+            const fisik = modelFisik.toUpperCase();
+
+            // ============================================================
+            // LANGKAH 1: Cek kapasitas mesin (CC) — INI YANG PALING KRUSIAL
+            // ============================================================
+            // Regex menangkap pola seperti "1.0", "1.2", "1.5", "2.0", "1500CC", "1500 CC"
+            const ccRegex = /\b(\d+[.,]\d+|\d{3,4}\s*CC)\b/g;
+
+            const ccDok = (dok.match(ccRegex) || []).map(s => s.replace(',', '.').replace(/\s*CC/i, ''));
+            const ccFisik = (fisik.match(ccRegex) || []).map(s => s.replace(',', '.').replace(/\s*CC/i, ''));
+
+            // Jika keduanya punya info CC dan berbeda → LANGSUNG BEDA
+            if (ccDok.length > 0 && ccFisik.length > 0) {
+                const ccDokNorm = ccDok[0];
+                const ccFisikNorm = ccFisik[0];
+                if (ccDokNorm !== ccFisikNorm) {
+                    console.log(`CC beda: dok="${ccDokNorm}" vs fisik="${ccFisikNorm}"`);
+                    return false; // 1.0 vs 1.2 → BEDA
+                }
+            }
+
+            // ============================================================
+            // LANGKAH 2: Cek tipe varian (X, G, E, V, dll) setelah CC
+            // ============================================================
+            // Contoh: "1.0 X" vs "1.2 X" → CC beda (sudah ketangkep di atas)
+            // Contoh: "1.0 X" vs "1.0 G" → varian beda
+            const varianRegex = /\b\d+[.,]\d+\s+([A-Z])\b/;
+            const varianDok = (dok.match(varianRegex) || [])[1];
+            const varianFisik = (fisik.match(varianRegex) || [])[1];
+            if (varianDok && varianFisik && varianDok !== varianFisik) {
+                console.log(`Varian beda: dok="${varianDok}" vs fisik="${varianFisik}"`);
+                return false;
+            }
+
+            // ============================================================
+            // LANGKAH 3: Character matching (fallback) dengan threshold lebih tinggi
+            // ============================================================
+            const dokClean = dok.replace(/\s/g, '');
+            const fisikClean = fisik.replace(/\s/g, '');
+            if (!dokClean || !fisikClean) return false;
+
+            let dokChars = dokClean.split('').filter(c => c.match(/[A-Z0-9]/));
+            let fisikChars = fisikClean.split('').filter(c => c.match(/[A-Z0-9]/));
             if (fisikChars.length === 0) return false;
+
             let matchCount = 0;
             let dokCopy = [...dokChars];
             for (let char of fisikChars) {
                 const idx = dokCopy.indexOf(char);
-                if (idx !== -1) { matchCount++; dokCopy.splice(idx, 1); }
+                if (idx !== -1) {
+                    matchCount++;
+                    dokCopy.splice(idx, 1);
+                }
             }
-            return (matchCount / fisikChars.length) >= 0.6;
+
+            const rasio = matchCount / fisikChars.length;
+            // Naikkan threshold dari 0.6 → 0.75 agar lebih ketat
+            return rasio >= 0.75;
         }
 
         // ============================================================
@@ -631,55 +668,43 @@
             const nopolQ = activeNopolQuery;
 
             filteredData = allData.filter(d => {
-                // Pencarian teks umum
                 if (q) {
                     const hay = `${d.merk} ${d.modelDok} ${d.modelFisik} ${d.namaSTNK} ${d.namaBPKB} ${d.nopol} ${d.noRangka} ${d.note1} ${d.lot}`.toLowerCase();
                     if (!hay.includes(q)) return false;
                 }
-                // Pencarian NOPOL khusus
                 if (nopolQ) {
                     const nopolNorm = d.nopol.toUpperCase().replace(/\s/g, '');
                     const queryNorm = nopolQ.toUpperCase().replace(/\s/g, '');
                     if (!nopolNorm.includes(queryNorm)) return false;
                 }
-                // Status
                 if (status === 'ok' && d.anomali) return false;
                 if (status === 'anomali' && !d.anomali) return false;
-                // Region
                 if (region === 'asia' && !d.isAsia) return false;
                 if (region === 'nonasia' && d.isAsia) return false;
-                // Transmisi
                 if (trans === 'sama' && d.transResult.status !== 'sama') return false;
                 if (trans === 'beda' && d.transResult.status !== 'beda') return false;
-                // Tahun rangka
                 if (tahun === 'valid' && !d.tahunValid) return false;
                 if (tahun === 'invalid' && !d.tahunMismatch) return false;
                 if (tahun === 'unknown' && d.statusVIN !== 'unknown') return false;
                 return true;
             });
 
-            // Terapkan sorting
             sortData();
 
-            // ===== TAMBAHAN: jika ada pencarian NOPOL, naikkan hasil yang cocok ke atas =====
             if (nopolQ) {
                 const queryNorm = nopolQ.toUpperCase().replace(/\s/g, '');
                 filteredData.sort((a, b) => {
                     const aNopol = a.nopol.toUpperCase().replace(/\s/g, '');
                     const bNopol = b.nopol.toUpperCase().replace(/\s/g, '');
-                    // Exact match paling atas
                     const aExact = aNopol === queryNorm ? 0 : 1;
                     const bExact = bNopol === queryNorm ? 0 : 1;
                     if (aExact !== bExact) return aExact - bExact;
-                    // Lalu yang dimulai dengan query
                     const aStarts = aNopol.startsWith(queryNorm) ? 0 : 1;
                     const bStarts = bNopol.startsWith(queryNorm) ? 0 : 1;
                     if (aStarts !== bStarts) return aStarts - bStarts;
-                    // Lalu yang mengandung query
                     const aContains = aNopol.includes(queryNorm) ? 0 : 1;
                     const bContains = bNopol.includes(queryNorm) ? 0 : 1;
                     if (aContains !== bContains) return aContains - bContains;
-                    // Terakhir: urutkan berdasarkan lot
                     return (a.lot || '').localeCompare(b.lot || '', undefined, { numeric: true });
                 });
             }
@@ -747,7 +772,6 @@
 
             for (let i = 0; i < pageData.length; i++) {
                 const d = pageData[i];
-                // ===== TAMBAHAN: tandai baris yang cocok dengan pencarian NOPOL =====
                 let rowClass = '';
                 if (nopolQNorm) {
                     const nopolNorm = d.nopol.toUpperCase().replace(/\s/g, '');
@@ -756,7 +780,6 @@
 
                 const nopolDisplay = d.nopol ? `<span class="nopol-cell">${escapeHtml(d.nopol)}</span>` : '<span class="kosong-text">-</span>';
 
-                // ===== TAMBAHAN: label prioritas =====
                 let priorityLabel = '';
                 if (nopolQNorm) {
                     const nopolNorm = d.nopol.toUpperCase().replace(/\s/g, '');
@@ -829,7 +852,6 @@
             prevPageBtn.disabled = currentPage <= 1;
             nextPageBtn.disabled = currentPage >= totalPages;
 
-            // Update indikator sorting di header
             document.querySelectorAll('th[data-sort]').forEach(th => {
                 const indicator = th.querySelector('.sort-indicator');
                 if (th.dataset.sort === sortKey) {
@@ -852,7 +874,6 @@
         // ============================================================
         // 10. EVENT LISTENERS
         // ============================================================
-        // Sorting klik header
         tableHead.addEventListener('click', function(e) {
             const th = e.target.closest('th[data-sort]');
             if (!th) return;
@@ -863,19 +884,15 @@
                 sortKey = key;
                 sortAsc = true;
             }
-            // Jika ada pencarian nopol, sorting manual tetap dihormati,
-            // tapi prioritas nopol tetap di atas (diterapkan di applyFilters)
             applyFilters();
         });
 
-        // Filter perubahan
         searchInput.addEventListener('input', applyFilters);
         statusFilter.addEventListener('change', applyFilters);
         regionFilter.addEventListener('change', applyFilters);
         transFilter.addEventListener('change', applyFilters);
         tahunFilter.addEventListener('change', applyFilters);
 
-        // ===== TAMBAHAN: pencarian NOPOL =====
         nopolSearchInput.addEventListener('input', function() {
             activeNopolQuery = this.value.trim();
             if (activeNopolQuery) {
@@ -893,7 +910,6 @@
             nopolSearchInput.focus();
         });
 
-        // Pagination
         prevPageBtn.addEventListener('click', function() {
             if (currentPage > 1) { currentPage--; renderTable(); }
         });
@@ -902,7 +918,6 @@
             if (currentPage < totalPages) { currentPage++; renderTable(); }
         });
 
-        // ===== Upload file =====
         fileInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) handleFile(file);
@@ -949,7 +964,6 @@
             debugInfo.classList.add('show');
         }
 
-        // ===== Inisialisasi awal =====
         renderTable();
     </script>
 </body>
