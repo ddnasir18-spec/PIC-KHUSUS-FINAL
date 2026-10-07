@@ -528,7 +528,6 @@
             const transDoc = String(row['TRANS.'] || row['TRANS'] || '').trim();
             const note1 = String(row['NOTE 1'] || '').trim();
             const lot = String(row['LOT'] || '').trim();
-            // ===== FUEL TYPE — hanya info, tidak dicek =====
             const fuelTypeExcel = String(row['FUEL TYPE'] || '').trim();
 
             const region = getRegion(merk);
@@ -555,12 +554,14 @@
 
             // ============================================================
             // CEK CC — Excel vs Model Fisik
+            // Nilai 0 di Excel dianggap sebagai nilai valid (0)
             // ============================================================
             const ccExcelRaw = row['CC'];
             let ccExcel = null;
             if (ccExcelRaw !== undefined && ccExcelRaw !== null && ccExcelRaw !== '') {
                 const parsed = parseInt(ccExcelRaw);
-                if (!isNaN(parsed) && parsed >= 600 && parsed <= 9999) {
+                // Terima nilai >= 0 (termasuk 0)
+                if (!isNaN(parsed) && parsed >= 0) {
                     ccExcel = parsed;
                 }
             }
@@ -574,9 +575,22 @@
 
             if (ccExcel !== null && ccFisik !== null) {
                 ccSelisih = Math.abs(ccExcel - ccFisik);
-                ccStatus = ccSelisih <= 100 ? 'sama' : 'beda';
-                ccDisplay = `${ccFisik}cc`;
-                ccSumber = 'Excel vs Fisik';
+                // Kalau salah satu nilainya 0, anggap "partial" (tidak bisa dibandingkan)
+                if (ccExcel === 0 || ccFisik === 0) {
+                    ccStatus = 'partial';
+                    ccDisplay = ccExcel === 0
+                        ? `0 vs ${ccFisik}cc`
+                        : `${ccFisik} vs 0cc`;
+                    ccSumber = 'Ada nilai 0';
+                } else if (ccSelisih <= 100) {
+                    ccStatus = 'sama';
+                    ccDisplay = `${ccFisik}cc`;
+                    ccSumber = 'Excel vs Fisik';
+                } else {
+                    ccStatus = 'beda';
+                    ccDisplay = `${ccExcel}≠${ccFisik}cc`;
+                    ccSumber = 'Excel vs Fisik';
+                }
             } else if (ccFisik !== null) {
                 ccStatus = 'partial';
                 ccDisplay = `${ccFisik}cc`;
@@ -620,6 +634,7 @@
                 anomali = true;
                 reasons.push('Tipe berbeda');
             }
+            // CC Beda hanya dianggap anomali kalau statusnya 'beda' (bukan 0)
             if (ccStatus === 'beda') {
                 anomali = true;
                 reasons.push(`CC beda (Excel ${ccExcel}cc vs Fisik ${ccFisik}cc)`);
@@ -637,7 +652,7 @@
                 reasons.push(`Transmisi: ${transDetail}`);
             }
 
-            // Kategori BBM untuk filter (dari nilai Excel)
+            // Kategori BBM untuk filter
             let fuelKategori = 'unknown';
             if (fuelTypeExcel) {
                 const lower = fuelTypeExcel.toLowerCase();
@@ -754,11 +769,13 @@
         }
 
         // ============================================================
-        // SEVERITY SCORE — HANYA untuk kolom yang memang dicek
+        // SEVERITY SCORE
         // ============================================================
         function getSeverityScore(item, key) {
             switch (key) {
                 case 'ccInfo':
+                    // Beda=3 > Partial=2 > Sama=1 > Unknown=0
+                    // (nilai 0 di Excel masuk 'partial', bukan 'beda')
                     if (item.ccStatus === 'beda') return 3;
                     if (item.ccStatus === 'partial') return 2;
                     if (item.ccStatus === 'sama') return 1;
@@ -799,7 +816,6 @@
         }
 
         function isSeverityColumn(key) {
-            // fuelExcel TIDAK termasuk → sorting alfabetis biasa
             return ['ccInfo', 'tipeSama', 'tahunRangka', 'transmisi', 'namaSama', 'anPT', 'region'].includes(key);
         }
 
@@ -816,7 +832,6 @@
                 return;
             }
 
-            // Alfabetis biasa (termasuk BBM)
             filteredData.sort((a, b) => {
                 let va, vb;
                 switch (key) {
@@ -894,14 +909,14 @@
                     const selisihInfo = d.ccSelisih > 0 ? ` (Δ${d.ccSelisih})` : '';
                     ccHtml = `<span class="badge badge-cc" title="Excel: ${d.ccExcel}cc | Fisik: ${d.ccFisik}cc">✅ ${d.ccDisplay}${selisihInfo}</span>`;
                 } else if (d.ccStatus === 'beda') {
-                    ccHtml = `<span class="badge badge-danger" title="Excel: ${d.ccExcel}cc | Fisik: ${d.ccFisik}cc">❌ ${d.ccExcel}≠${d.ccFisik}cc</span>`;
+                    ccHtml = `<span class="badge badge-danger" title="Excel: ${d.ccExcel}cc | Fisik: ${d.ccFisik}cc">❌ ${d.ccDisplay}</span>`;
                 } else if (d.ccStatus === 'partial') {
                     ccHtml = `<span class="badge badge-warning" title="${d.ccSumber}">⚠️ ${d.ccDisplay}</span>`;
                 } else {
                     ccHtml = '<span class="badge badge-unknown">—</span>';
                 }
 
-                // ---- Badge BBM — HANYA tampilkan nilai dari Excel ----
+                // ---- Badge BBM ----
                 let fuelHtml;
                 if (!d.fuelExcel) {
                     fuelHtml = '<span class="badge badge-unknown">—</span>';
