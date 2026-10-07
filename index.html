@@ -111,6 +111,8 @@
         }
         th.sort-active { background: #dbeafe; color: #1e40af; }
         th.sort-active .sort-indicator { color: #2563eb; font-weight: 700; }
+        th.sort-severity { background: #fee2e2; color: #991b1b; }
+        th.sort-severity .sort-indicator { color: #dc2626; font-weight: 700; }
         td {
             padding: 8px 6px; border-bottom: 1px solid #f1f5f9;
             vertical-align: middle; max-width: 120px;
@@ -123,6 +125,7 @@
         }
         .badge-success { background: #dcfce7; color: #166534; }
         .badge-danger { background: #fee2e2; color: #991b1b; }
+        .badge-danger-strong { background: #dc2626; color: white; }
         .badge-warning { background: #fef9c3; color: #854d0e; }
         .badge-info { background: #dbeafe; color: #1e40af; }
         .badge-secondary { background: #e2e8f0; color: #334155; }
@@ -239,7 +242,7 @@
     <div class="container">
         <h1>📊 Analisis Data Lelang</h1>
         <div class="subtitle">
-            Pengecekan Tahun dari digit ke-10 No.Rangka (VIN Year Code) · Kesesuaian Tipe & CC (dari kolom CC) · Nama STNK vs BPKB · Status PT · Cek Transmisi
+            <b>CC</b>: Kolom CC Excel vs CC Model Fisik · <b>Tipe</b>: Model Dokumen vs Model Fisik · Tahun Rangka (VIN) · Nama STNK vs BPKB · Status PT · Transmisi
             <span class="filter-info">🌏 Hanya merk Asia (Jepang, China, Korea)</span>
         </div>
 
@@ -300,7 +303,7 @@
                         <option value="unknown">❓ Tidak terdeteksi</option>
                     </select>
                 </label>
-                <span style="font-size:0.7rem;color:#94a3b8;margin-left:auto;">Klik header untuk urutkan</span>
+                <span style="font-size:0.7rem;color:#94a3b8;margin-left:auto;">Klik header = urutkan (yang bermasalah di atas)</span>
             </div>
             <div class="table-scroll" id="tableScroll">
                 <table>
@@ -374,7 +377,6 @@
         const clearNopolBtn = document.getElementById('clearNopolBtn');
 
         let sortKey = 'lot';
-        let sortAsc = true;
         let activeNopolQuery = '';
 
         // ============================================================
@@ -488,21 +490,19 @@
         }
 
         // ============================================================
-        // 5. EKSTRAK CC DARI TEKS (liter ↔ cc dengan normalisasi)
+        // 5. EKSTRAK CC DARI TEKS (untuk Model Fisik)
         // ============================================================
         function extractCC(text) {
             if (!text) return null;
             const upper = String(text).toUpperCase().replace(',', '.');
-
-            // Pola 1: Angka eksplisit + "CC" (paling akurat)
+            // Pola 1: Angka eksplisit + "CC"
             const ccExplicitRegex = /(\d{3,5})\s*CC\b/;
             const ccExplicitMatch = upper.match(ccExplicitRegex);
             if (ccExplicitMatch) {
                 const val = parseInt(ccExplicitMatch[1]);
                 if (val >= 600 && val <= 9999) return val;
             }
-
-            // Pola 2: Angka desimal (liter) → konversi ke cc
+            // Pola 2: Angka desimal (liter)
             const literRegex = /(?<![.\d])(\d)\.(\d)(?![.\d])/;
             const literMatch = upper.match(literRegex);
             if (literMatch) {
@@ -511,8 +511,7 @@
                     return Math.round(liter * 1000);
                 }
             }
-
-            // Pola 3: Angka ribuan tanpa "CC" (fallback)
+            // Pola 3: Angka ribuan tanpa "CC"
             const ribuanRegex = /(?<!\d)(\d{3,4})(?!\d)/g;
             let match;
             while ((match = ribuanRegex.exec(upper)) !== null) {
@@ -525,56 +524,17 @@
         }
 
         // ============================================================
-        // 6. CEK TIPE — UTAMA BANDINGKAN CC FISIK VS CC EXCEL
+        // 6. CEK TIPE — MURNI: Model Dokumen vs Model Fisik
         // ============================================================
-        // Parameter:
-        //   modelDok       : string model dokumen
-        //   modelFisik     : string model fisik
-        //   ccExcel        : angka CC dari kolom Excel (AF) — pembanding UTAMA
-        //   ccFisik        : angka CC hasil ekstraksi dari model fisik
-        //
-        // Logika:
-        //   1. Jika ccExcel & ccFisik ada → bandingkan, toleransi ±100cc
-        //   2. Jika salah satu null → fallback ke Model Fisik vs Model Dokumen
-        //      dengan character matching (threshold 60%)
-        function isTipeSamaLonggar(modelDok, modelFisik, ccExcel, ccFisik) {
+        // TIDAK dipengaruhi oleh CC sama sekali.
+        // Threshold character matching: 60%
+        function isTipeSamaMurni(modelDok, modelFisik) {
             if (!modelDok || !modelFisik) return false;
 
             const dok = modelDok.toUpperCase();
             const fisik = modelFisik.toUpperCase();
 
-            const CC_TOLERANCE = 100;
-
-            // ---- LANGKAH 1: Bandingkan CC Excel vs CC Fisik (PRIORITAS UTAMA) ----
-            if (ccExcel !== null && ccFisik !== null) {
-                const selisih = Math.abs(ccExcel - ccFisik);
-                if (selisih > CC_TOLERANCE) {
-                    console.log(`❌ CC beda: Excel="${ccExcel}cc" vs Fisik="${ccFisik}cc" (Δ${selisih})`);
-                    return false;
-                }
-                console.log(`✅ CC cocok: Excel="${ccExcel}cc" vs Fisik="${ccFisik}cc" (Δ${selisih})`);
-                // CC cocok → lanjut cek varian
-                const varianRegex = /\b\d+[.,]\d+\s+([A-Z])\b/;
-                const varianDok = (dok.match(varianRegex) || [])[1];
-                const varianFisik = (fisik.match(varianRegex) || [])[1];
-                if (varianDok && varianFisik && varianDok !== varianFisik) {
-                    return false;
-                }
-                return true;
-            }
-
-            // ---- LANGKAH 2: Fallback — bandingkan model fisik vs model dokumen ----
-            // (dipakai kalau ccExcel atau ccFisik tidak terdeteksi)
-            const ccDokFallback = extractCC(dok);
-            if (ccDokFallback !== null && ccFisik !== null) {
-                const selisih = Math.abs(ccDokFallback - ccFisik);
-                if (selisih > CC_TOLERANCE) {
-                    console.log(`❌ CC beda (fallback): Dok="${ccDokFallback}cc" vs Fisik="${ccFisik}cc"`);
-                    return false;
-                }
-            }
-
-            // Cek varian
+            // Cek varian huruf (kalau ada di kedua sisi)
             const varianRegex = /\b\d+[.,]\d+\s+([A-Z])\b/;
             const varianDok = (dok.match(varianRegex) || [])[1];
             const varianFisik = (fisik.match(varianRegex) || [])[1];
@@ -600,7 +560,6 @@
                     dokCopy.splice(idx, 1);
                 }
             }
-
             const rasio = matchCount / fisikChars.length;
             return rasio >= 0.60;
         }
@@ -620,14 +579,14 @@
             const transDoc = String(row['TRANS.'] || row['TRANS'] || '').trim();
             const note1 = String(row['NOTE 1'] || '').trim();
             const lot = String(row['LOT'] || '').trim();
-            // ===== KOLOM BARU DARI EXCEL =====
-            const ccExcelRaw = row['CC'];
-            const ccExcel = ccExcelRaw !== undefined && ccExcelRaw !== '' ? parseInt(ccExcelRaw) : null;
             const fuelType = String(row['FUEL TYPE'] || '').trim();
 
             const region = getRegion(merk);
             const isAsia = region === 'asia';
 
+            // ============================================================
+            // CEK TAHUN RANGKA (VIN digit ke-10)
+            // ============================================================
             let tahunRangka = null, kodeTahunVIN = null, statusVIN = 'unknown', mappingVIN = null;
             if (isAsia) {
                 const vinResult = parseYearFromVIN(noRangka, tahun);
@@ -645,10 +604,22 @@
             }
 
             // ============================================================
-            // CEK CC — Prioritaskan kolom CC dari Excel
+            // CEK CC — Bandingkan CC Excel vs CC Model Fisik (INDEPENDEN dari Tipe)
             // ============================================================
-            const ccFisik = extractCC(modelFisik);   // hasil ekstraksi dari Model Fisik
-            const ccDok = extractCC(modelDok);       // fallback dari Model Dokumen
+            // Baca CC dari kolom 'CC' (AF). Nilai 0 / kosong / invalid → null
+            const ccExcelRaw = row['CC'];
+            let ccExcel = null;
+            if (ccExcelRaw !== undefined && ccExcelRaw !== null && ccExcelRaw !== '') {
+                const parsed = parseInt(ccExcelRaw);
+                // Range wajar CC mobil: 600 - 9999 cc
+                // Nilai 0 atau di luar range dianggap tidak ada info
+                if (!isNaN(parsed) && parsed >= 600 && parsed <= 9999) {
+                    ccExcel = parsed;
+                }
+            }
+
+            // Ekstrak CC dari Model Fisik (misal "GRAN MAX 1.3" → 1300)
+            const ccFisik = extractCC(modelFisik);
 
             let ccStatus = 'unknown';
             let ccSelisih = null;
@@ -656,26 +627,32 @@
             let ccSumber = '';
 
             if (ccExcel !== null && ccFisik !== null) {
+                // DUA-DUANYA ADA → bandingkan
                 ccSelisih = Math.abs(ccExcel - ccFisik);
                 ccStatus = ccSelisih <= 100 ? 'sama' : 'beda';
-                ccDisplay = ccFisik + 'cc';
-                ccSumber = 'Excel';
+                ccDisplay = `${ccFisik}cc`;
+                ccSumber = 'Excel vs Fisik';
             } else if (ccFisik !== null) {
+                // Hanya Fisik yang ada
                 ccStatus = 'partial';
-                ccDisplay = ccFisik + 'cc';
-                ccSumber = 'Fisik';
+                ccDisplay = `${ccFisik}cc`;
+                ccSumber = 'Hanya Fisik';
             } else if (ccExcel !== null) {
+                // Hanya Excel yang ada
                 ccStatus = 'partial';
-                ccDisplay = ccExcel + 'cc';
-                ccSumber = 'Excel';
-            } else if (ccDok !== null) {
-                ccStatus = 'partial';
-                ccDisplay = ccDok + 'cc';
-                ccSumber = 'Dok';
+                ccDisplay = `${ccExcel}cc`;
+                ccSumber = 'Hanya Excel';
             }
 
-            const tipeSama = isTipeSamaLonggar(modelDok, modelFisik, ccExcel, ccFisik);
+            // ============================================================
+            // CEK TIPE — MURNI: Model Dokumen vs Model Fisik
+            // (TIDAK dipengaruhi oleh CC sama sekali)
+            // ============================================================
+            const tipeSama = isTipeSamaMurni(modelDok, modelFisik);
 
+            // ============================================================
+            // CEK NAMA STNK vs BPKB
+            // ============================================================
             let namaSama = true, namaKosong = false;
             if (!namaSTNK && !namaBPKB) { namaKosong = true; namaSama = true; }
             else if (namaSTNK && namaBPKB) { namaSama = namaSTNK.toLowerCase() === namaBPKB.toLowerCase(); }
@@ -689,27 +666,42 @@
             const transSama = transResult.status === 'sama';
             const transDetail = transResult.detail;
 
+            // ============================================================
+            // HITUNG ANOMALI
+            // ============================================================
             let anomali = false, reasons = [];
-            if (isAsia && tahunMismatch) { anomali = true; reasons.push(`Tahun mismatch (${tahun} vs ${tahunRangka})`); }
+            if (isAsia && tahunMismatch) {
+                anomali = true;
+                reasons.push(`Tahun mismatch (${tahun} vs ${tahunRangka})`);
+            }
+            // Tipe Beda (murni, tidak dipengaruhi CC)
             if (!tipeSama && modelDok && modelFisik) {
                 anomali = true;
-                let reason = 'Tipe berbeda';
-                if (ccStatus === 'beda') reason += ` (CC: Excel ${ccExcel}cc vs Fisik ${ccFisik}cc)`;
-                reasons.push(reason);
+                reasons.push('Tipe berbeda');
             }
-            if (!namaSama && namaSTNK && namaBPKB) { anomali = true; reasons.push('Nama STNK ≠ BPKB'); }
+            // CC Beda (independen, hanya kalau dua-duanya ada)
+            if (ccStatus === 'beda') {
+                anomali = true;
+                reasons.push(`CC beda (Excel ${ccExcel}cc vs Fisik ${ccFisik}cc)`);
+            }
+            if (!namaSama && namaSTNK && namaBPKB) {
+                anomali = true;
+                reasons.push('Nama STNK ≠ BPKB');
+            }
             if (note1.toUpperCase().includes('AN PT') && !namaSTNK.toUpperCase().startsWith('PT') && !namaBPKB.toUpperCase().startsWith('PT')) {
-                anomali = true; reasons.push('Note "AN PT" tapi nama bukan PT');
+                anomali = true;
+                reasons.push('Note "AN PT" tapi nama bukan PT');
             }
             if (!transSama && transResult.status !== 'unknown') {
-                anomali = true; reasons.push(`Transmisi: ${transDetail}`);
+                anomali = true;
+                reasons.push(`Transmisi: ${transDetail}`);
             }
 
             return {
                 lot, merk, modelDok, modelFisik, tahun, noRangka, nopol, namaSTNK, namaBPKB, transDoc, note1,
                 region, isAsia, tahunRangka, kodeTahunVIN, statusVIN, mappingVIN, tahunValid, tahunMismatch,
                 tipeSama, namaSama, namaKosong, anPT, transResult, transSama, transDetail, anomali,
-                ccExcel, ccFisik, ccDok, ccStatus, ccSelisih, ccDisplay, ccSumber, fuelType,
+                ccExcel, ccFisik, ccStatus, ccSelisih, ccDisplay, ccSumber, fuelType,
                 reasons: reasons.join('; ')
             };
         }
@@ -750,7 +742,7 @@
         }
 
         // ============================================================
-        // 9. FILTER & SORTING
+        // 9. FILTER & SORTING (SEVERITY-BASED)
         // ============================================================
         function applyFilters() {
             const q = searchInput.value.toLowerCase().trim();
@@ -806,39 +798,99 @@
             renderTable();
         }
 
+        // ============================================================
+        // SEVERITY SCORE — Semakin tinggi = semakin bermasalah (naik ke atas)
+        // ============================================================
+        function getSeverityScore(item, key) {
+            switch (key) {
+                // CC: Beda=3 > Partial=2 > Sama=1 > Unknown=0
+                case 'ccInfo':
+                    if (item.ccStatus === 'beda') return 3;
+                    if (item.ccStatus === 'partial') return 2;
+                    if (item.ccStatus === 'sama') return 1;
+                    return 0;
+
+                // Tipe Sama (MURNI — hanya lihat tipe, tidak lihat CC):
+                // Beda=2 > Sama=1 > Unknown=0
+                case 'tipeSama':
+                    if (!item.tipeSama) return 2;
+                    return 1;
+
+                // Tahun Rangka: Mismatch=3 > Valid=2 > Unknown=1 > Non-Asia=0
+                case 'tahunRangka':
+                    if (item.tahunMismatch) return 3;
+                    if (item.tahunValid && item.isAsia) return 2;
+                    if (item.statusVIN === 'unknown' && item.isAsia) return 1;
+                    return 0;
+
+                // Transmisi: Beda=2 > Sama=1 > Unknown=0
+                case 'transmisi':
+                    if (item.transResult.status === 'beda') return 2;
+                    if (item.transResult.status === 'sama') return 1;
+                    return 0;
+
+                // Nama Sama: Beda=2 > Sama=1 > Kosong=0
+                case 'namaSama':
+                    if (!item.namaSama && !item.namaKosong) return 2;
+                    if (item.namaSama && !item.namaKosong) return 1;
+                    return 0;
+
+                // AN PT: PT=1 > bukan PT=0
+                case 'anPT':
+                    return item.anPT ? 1 : 0;
+
+                // Region: Other=2 > Asia=1 > Eropa=0
+                case 'region':
+                    if (item.region === 'other') return 2;
+                    if (item.region === 'asia') return 1;
+                    if (item.region === 'europe') return 0;
+                    return 1;
+
+                default:
+                    return -1;
+            }
+        }
+
+        function isSeverityColumn(key) {
+            return ['ccInfo', 'tipeSama', 'tahunRangka', 'transmisi', 'namaSama', 'anPT', 'region'].includes(key);
+        }
+
         function sortData() {
             const key = sortKey;
-            const asc = sortAsc;
+
+            if (isSeverityColumn(key)) {
+                // SEVERITY MODE: yang bermasalah selalu di atas, klik berkali-kali tetap sama
+                filteredData.sort((a, b) => {
+                    const sevA = getSeverityScore(a, key);
+                    const sevB = getSeverityScore(b, key);
+                    if (sevA !== sevB) return sevB - sevA; // Descending
+                    // Secondary: LOT (numeric)
+                    return (a.lot || '').localeCompare(b.lot || '', undefined, { numeric: true });
+                });
+                return;
+            }
+
+            // ALFABETIS MODE untuk kolom non-severity
             filteredData.sort((a, b) => {
                 let va, vb;
                 switch (key) {
                     case 'lot': va = a.lot || ''; vb = b.lot || ''; break;
                     case 'nopol': va = a.nopol || ''; vb = b.nopol || ''; break;
                     case 'merk': va = a.merk || ''; vb = b.merk || ''; break;
-                    case 'region': va = a.region || ''; vb = b.region || ''; break;
                     case 'modelDok': va = a.modelDok || ''; vb = b.modelDok || ''; break;
                     case 'modelFisik': va = a.modelFisik || ''; vb = b.modelFisik || ''; break;
-                    case 'ccInfo':
-                        va = a.ccFisik !== null ? a.ccFisik : (a.ccExcel !== null ? a.ccExcel : -1);
-                        vb = b.ccFisik !== null ? b.ccFisik : (b.ccExcel !== null ? b.ccExcel : -1);
-                        break;
-                    case 'tipeSama': va = a.tipeSama ? '1' : '0'; vb = b.tipeSama ? '1' : '0'; break;
                     case 'tahun': va = a.tahun || 0; vb = b.tahun || 0; break;
-                    case 'tahunRangka': va = a.tahunRangka || 0; vb = b.tahunRangka || 0; break;
-                    case 'transmisi': va = a.transResult.status || ''; vb = b.transResult.status || ''; break;
                     case 'namaSTNK': va = a.namaSTNK || ''; vb = b.namaSTNK || ''; break;
                     case 'namaBPKB': va = a.namaBPKB || ''; vb = b.namaBPKB || ''; break;
-                    case 'namaSama': va = a.namaSama ? '1' : '0'; vb = b.namaSama ? '1' : '0'; break;
-                    case 'anPT': va = a.anPT ? '1' : '0'; vb = b.anPT ? '1' : '0'; break;
                     case 'note1': va = a.note1 || ''; vb = b.note1 || ''; break;
                     default: va = a.lot || ''; vb = b.lot || '';
                 }
                 if (typeof va === 'number' && typeof vb === 'number') {
-                    return asc ? va - vb : vb - va;
+                    return va - vb;
                 }
                 const sa = String(va).toLowerCase(), sb = String(vb).toLowerCase();
-                if (sa < sb) return asc ? -1 : 1;
-                if (sa > sb) return asc ? 1 : -1;
+                if (sa < sb) return -1;
+                if (sa > sb) return 1;
                 return 0;
             });
         }
@@ -885,19 +937,20 @@
                     else if (nopolNorm.includes(nopolQNorm)) priorityLabel = '<span class="priority-label">🔍 COCOK</span>';
                 }
 
+                // ---- Tipe Sama Badge (MURNI — hanya dari modelDok vs modelFisik) ----
                 const tipeBadge = d.tipeSama
                     ? '<span class="badge badge-success">✅ Sama</span>'
                     : '<span class="badge badge-danger">❌ Beda</span>';
 
-                // ---- Badge CC ----
+                // ---- Badge CC (INDEPENDEN dari Tipe) ----
                 let ccHtml;
                 if (d.ccStatus === 'sama') {
                     const selisihInfo = d.ccSelisih > 0 ? ` (Δ${d.ccSelisih})` : '';
-                    ccHtml = `<span class="badge badge-cc" title="CC Excel: ${d.ccExcel}cc | CC Fisik: ${d.ccFisik}cc">✅ ${d.ccDisplay}${selisihInfo}</span>`;
+                    ccHtml = `<span class="badge badge-cc" title="Excel: ${d.ccExcel}cc | Fisik: ${d.ccFisik}cc">✅ ${d.ccDisplay}${selisihInfo}</span>`;
                 } else if (d.ccStatus === 'beda') {
-                    ccHtml = `<span class="badge badge-danger" title="CC Excel: ${d.ccExcel}cc | CC Fisik: ${d.ccFisik}cc">❌ ${d.ccExcel}≠${d.ccFisik}cc</span>`;
+                    ccHtml = `<span class="badge badge-danger" title="Excel: ${d.ccExcel}cc | Fisik: ${d.ccFisik}cc">❌ ${d.ccExcel}≠${d.ccFisik}cc</span>`;
                 } else if (d.ccStatus === 'partial') {
-                    ccHtml = `<span class="badge badge-warning" title="Sumber: ${d.ccSumber}">⚠️ ${d.ccDisplay}</span>`;
+                    ccHtml = `<span class="badge badge-warning" title="${d.ccSumber}">⚠️ ${d.ccDisplay}</span>`;
                 } else {
                     ccHtml = '<span class="badge badge-unknown">—</span>';
                 }
@@ -963,13 +1016,19 @@
             prevPageBtn.disabled = currentPage <= 1;
             nextPageBtn.disabled = currentPage >= totalPages;
 
+            // Update indikator sorting di header
             document.querySelectorAll('th[data-sort]').forEach(th => {
                 const indicator = th.querySelector('.sort-indicator');
+                th.classList.remove('sort-active', 'sort-severity');
                 if (th.dataset.sort === sortKey) {
-                    th.classList.add('sort-active');
-                    if (indicator) indicator.textContent = sortAsc ? '↑' : '↓';
+                    if (isSeverityColumn(sortKey)) {
+                        th.classList.add('sort-severity');
+                        if (indicator) indicator.textContent = '⚠️';
+                    } else {
+                        th.classList.add('sort-active');
+                        if (indicator) indicator.textContent = '↑';
+                    }
                 } else {
-                    th.classList.remove('sort-active');
                     if (indicator) indicator.textContent = '↕';
                 }
             });
@@ -989,12 +1048,8 @@
             const th = e.target.closest('th[data-sort]');
             if (!th) return;
             const key = th.dataset.sort;
-            if (sortKey === key) {
-                sortAsc = !sortAsc;
-            } else {
-                sortKey = key;
-                sortAsc = true;
-            }
+            // Klik berkali-kali tetap sama (severity mode untuk kolom severity)
+            sortKey = key;
             applyFilters();
         });
 
