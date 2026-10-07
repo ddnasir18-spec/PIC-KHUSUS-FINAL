@@ -11,7 +11,7 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: #f0f4f8; padding: 20px; color: #1e293b;
         }
-        .container { max-width: 1600px; margin: 0 auto; }
+        .container { max-width: 1800px; margin: 0 auto; }
         h1 { font-size: 1.8rem; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; }
         .subtitle {
             color: #475569; margin-bottom: 24px; padding-left: 16px;
@@ -96,7 +96,7 @@
         }
         .table-scroll { overflow-x: auto; overflow-y: visible; max-height: none; }
         table {
-            width: 100%; border-collapse: collapse; font-size: 0.73rem; min-width: 1700px;
+            width: 100%; border-collapse: collapse; font-size: 0.73rem; min-width: 1850px;
         }
         th {
             background: #f1f5f9; text-align: left; padding: 10px 8px;
@@ -135,6 +135,7 @@
         .badge-trans { background: #fef3c7; color: #92400e; }
         .badge-unknown { background: #f3f4f6; color: #6b7280; }
         .badge-cc { background: #f0fdf4; color: #14532d; border: 1px solid #86efac; }
+        .badge-fuel { background: #fef3c7; color: #78350f; border: 1px solid #fcd34d; }
         .note-cell {
             max-width: 150px; white-space: pre-wrap;
             word-break: break-word; font-size: 0.58rem;
@@ -175,66 +176,12 @@
             font-size: 0.65rem; color: #1e40af; background: #eff6ff;
             padding: 2px 8px; border-radius: 4px; display: inline-block;
         }
-        .rangka-tooltip {
-            position: relative; display: inline-block; cursor: help;
-            font-weight: 600; color: #dc2626; text-decoration: underline dotted;
-            border-bottom: 2px dotted #dc2626; padding: 2px 0;
-        }
-        .rangka-tooltip.valid { color: #16a34a; border-bottom-color: #16a34a; }
-        .rangka-tooltip.unknown { color: #6b7280; border-bottom-color: #6b7280; }
-        .rangka-tooltip .tooltip-box {
-            visibility: hidden; width: 340px; background: #1e293b;
-            color: #f1f5f9; text-align: left; border-radius: 10px;
-            padding: 14px 16px; position: absolute; z-index: 1000;
-            opacity: 0; transition: opacity 0.25s ease, visibility 0.25s ease;
-            font-size: 0.7rem; font-weight: normal;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-            white-space: normal; word-break: break-all;
-            line-height: 1.6; pointer-events: none;
-        }
-        .rangka-tooltip .tooltip-box.tooltip-up {
-            bottom: 130%; left: 50%; transform: translateX(-50%);
-        }
-        .rangka-tooltip .tooltip-box.tooltip-up::after {
-            content: ""; position: absolute; top: 100%; left: 50%;
-            margin-left: -6px; border-width: 6px; border-style: solid;
-            border-color: #1e293b transparent transparent transparent;
-        }
-        .rangka-tooltip .tooltip-box.tooltip-down {
-            top: 130%; left: 50%; transform: translateX(-50%);
-        }
-        .rangka-tooltip .tooltip-box.tooltip-down::after {
-            content: ""; position: absolute; bottom: 100%; left: 50%;
-            margin-left: -6px; border-width: 6px; border-style: solid;
-            border-color: transparent transparent #1e293b transparent;
-        }
-        .rangka-tooltip:hover .tooltip-box { visibility: visible; opacity: 1; }
-        .rangka-tooltip .tooltip-box .label {
-            color: #94a3b8; font-size: 0.6rem;
-            text-transform: uppercase; letter-spacing: 0.5px;
-        }
-        .rangka-tooltip .tooltip-box .value {
-            color: #f1f5f9; font-weight: 600;
-            font-family: 'Courier New', monospace; background: #0f172a;
-            padding: 2px 8px; border-radius: 4px; display: inline-block;
-            margin-top: 2px; max-width: 200px; word-break: break-all; text-align: right;
-        }
-        .rangka-tooltip .tooltip-box .warning-text { color: #fbbf24; font-weight: 600; }
-        .rangka-tooltip .tooltip-box .row-detail {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 4px 0; border-bottom: 1px solid #334155; gap: 8px;
-        }
-        .rangka-tooltip .tooltip-box .row-detail:last-child { border-bottom: none; }
-        .rangka-tooltip .tooltip-box .highlight { color: #4ade80; font-weight: 700; }
         .kosong-text { color: #94a3b8; font-style: italic; font-size: 0.6rem; }
-        .unknown-year { color: #6b7280; font-style: italic; font-weight: 600; }
         @media (max-width: 768px) {
             .filter-bar { flex-direction: column; align-items: stretch; }
             .filter-bar label { flex-wrap: wrap; }
             .upload-card { padding: 16px; }
             .stats span { font-size: 0.75rem; padding: 4px 12px; }
-            .rangka-tooltip .tooltip-box { width: 280px; left: 0 !important; transform: none !important; }
-            .rangka-tooltip .tooltip-box::after { left: 20%; }
         }
     </style>
 </head>
@@ -242,7 +189,7 @@
     <div class="container">
         <h1>📊 Analisis Data Lelang</h1>
         <div class="subtitle">
-            <b>CC</b>: Kolom CC Excel vs CC Model Fisik · <b>Tipe</b>: Model Dokumen vs Model Fisik · Tahun Rangka (VIN) · Nama STNK vs BPKB · Status PT · Transmisi
+            <b>CC</b>: Kolom CC Excel vs CC Model Fisik · <b>Tipe</b>: Model Dokumen vs Model Fisik · <b>BBM</b>: FUEL TYPE vs Model Fisik/Dokumen · Tahun Rangka (VIN) · Nama STNK vs BPKB · Status PT · Transmisi
             <span class="filter-info">🌏 Hanya merk Asia (Jepang, China, Korea)</span>
         </div>
 
@@ -259,6 +206,7 @@
                 <span>📋 Total Data: <strong id="totalRows">0</strong></span>
                 <span>⚠️ Anomali: <strong id="anomaliCount">0</strong></span>
                 <span>🔧 Transmisi Beda: <strong id="transBedaCount">0</strong></span>
+                <span>⛽ BBM Beda: <strong id="fuelBedaCount">0</strong></span>
                 <span>🌏 Asia: <strong id="asiaCount">0</strong></span>
             </div>
             <div class="loading" id="loadingIndicator">⏳ Memproses data...</div>
@@ -286,6 +234,14 @@
                         <option value="all">Semua</option>
                         <option value="asia">Asia (Jepang/China/Korea)</option>
                         <option value="nonasia">Non-Asia</option>
+                    </select>
+                </label>
+                <label>⛽ BBM:
+                    <select id="fuelFilter">
+                        <option value="all">Semua</option>
+                        <option value="sama">✅ Cocok</option>
+                        <option value="beda">❌ Beda</option>
+                        <option value="unknown">❓ Unknown</option>
                     </select>
                 </label>
                 <label>🔧 Transmisi:
@@ -316,6 +272,7 @@
                             <th data-sort="modelDok">Model Dokumen <span class="sort-indicator">↕</span></th>
                             <th data-sort="modelFisik">Model Fisik <span class="sort-indicator">↕</span></th>
                             <th data-sort="ccInfo">CC <span class="sort-indicator">↕</span></th>
+                            <th data-sort="fuelInfo">BBM <span class="sort-indicator">↕</span></th>
                             <th data-sort="tipeSama">Tipe Sama <span class="sort-indicator">↕</span></th>
                             <th data-sort="tahun">Tahun <span class="sort-indicator">↕</span></th>
                             <th data-sort="tahunRangka">Tahun Rangka <span class="sort-indicator">↕</span></th>
@@ -329,7 +286,7 @@
                     </thead>
                     <tbody id="tableBody">
                         <tr>
-                            <td colspan="16" class="empty-state">
+                            <td colspan="17" class="empty-state">
                                 <span class="icon">📂</span>
                                 Upload file Excel untuk memulai analisis
                             </td>
@@ -362,6 +319,7 @@
         const searchInput = document.getElementById('searchInput');
         const statusFilter = document.getElementById('statusFilter');
         const regionFilter = document.getElementById('regionFilter');
+        const fuelFilter = document.getElementById('fuelFilter');
         const transFilter = document.getElementById('transFilter');
         const tahunFilter = document.getElementById('tahunFilter');
         const tableBody = document.getElementById('tableBody');
@@ -369,6 +327,7 @@
         const totalRows = document.getElementById('totalRows');
         const anomaliCount = document.getElementById('anomaliCount');
         const transBedaCount = document.getElementById('transBedaCount');
+        const fuelBedaCount = document.getElementById('fuelBedaCount');
         const asiaCount = document.getElementById('asiaCount');
         const prevPageBtn = document.getElementById('prevPage');
         const nextPageBtn = document.getElementById('nextPage');
@@ -380,7 +339,7 @@
         let activeNopolQuery = '';
 
         // ============================================================
-        // 2. VIN YEAR CODE MAPPING (Digit ke-10)
+        // 2. VIN YEAR CODE MAPPING
         // ============================================================
         const VIN_YEAR_MAP = {
             'A': 1980, 'B': 1981, 'C': 1982, 'D': 1983, 'E': 1984,
@@ -490,19 +449,17 @@
         }
 
         // ============================================================
-        // 5. EKSTRAK CC DARI TEKS (untuk Model Fisik)
+        // 5. EKSTRAK CC DARI TEKS
         // ============================================================
         function extractCC(text) {
             if (!text) return null;
             const upper = String(text).toUpperCase().replace(',', '.');
-            // Pola 1: Angka eksplisit + "CC"
             const ccExplicitRegex = /(\d{3,5})\s*CC\b/;
             const ccExplicitMatch = upper.match(ccExplicitRegex);
             if (ccExplicitMatch) {
                 const val = parseInt(ccExplicitMatch[1]);
                 if (val >= 600 && val <= 9999) return val;
             }
-            // Pola 2: Angka desimal (liter)
             const literRegex = /(?<![.\d])(\d)\.(\d)(?![.\d])/;
             const literMatch = upper.match(literRegex);
             if (literMatch) {
@@ -511,7 +468,6 @@
                     return Math.round(liter * 1000);
                 }
             }
-            // Pola 3: Angka ribuan tanpa "CC"
             const ribuanRegex = /(?<!\d)(\d{3,4})(?!\d)/g;
             let match;
             while ((match = ribuanRegex.exec(upper)) !== null) {
@@ -524,17 +480,81 @@
         }
 
         // ============================================================
-        // 6. CEK TIPE — MURNI: Model Dokumen vs Model Fisik
+        // 6. DETEKSI BAHAN BAKAR (Fuel Type Detection)
         // ============================================================
-        // TIDAK dipengaruhi oleh CC sama sekali.
-        // Threshold character matching: 60%
+        // Urutan prioritas:
+        //   1. Keyword di Model Fisik
+        //   2. Keyword di Model Dokumen
+        //   3. Heuristik CC + Merk
+        //
+        // Return: { fuel: 'Bensin'|'Solar'|'Listrik'|'Hybrid'|null, sumber: 'fisik'|'dokumen'|'cc-heuristik'|null }
+
+        const FUEL_KEYWORDS = {
+            // Keyword → jenis bahan bakar
+            'solar': ['DSL', 'DIESEL', 'SOLAR', 'CRDI', 'CRD', 'TDI', 'D4D', 'D-4D', 'TDCI', 'TDCi', 'CDI', 'DOHC DIESEL'],
+            'bensin': ['BENSIN', 'GASOLINE', 'PETROL', 'VVT-I', 'VVT-i', 'VVT', 'i-VTEC', 'IVTEC', 'VTEC', 'MPI', 'EFI', 'GDI', 'TSI', 'TFSI', 'CVVT', 'VVTI'],
+            'listrik': ['EV', 'ELECTRIC', 'LISTRIK', 'BEV', 'AIR EV', 'IONIQ', 'VF 3', 'VF 5', 'VF 6', 'VF 8', 'VF 9', 'CLOUD EV', 'BINGUO'],
+            'hybrid': ['HYBRID', 'HEV', 'PHEV', 'HYBRID SYNERGY', 'E:HEV', 'MHEV'],
+        };
+
+        function detectFuelFromText(text) {
+            if (!text) return null;
+            const upper = String(text).toUpperCase();
+            // Cek dalam urutan: hybrid > listrik > solar > bensin
+            // (karena "HYBRID" lebih spesifik dari "BENSIN")
+            for (let jenis of ['hybrid', 'listrik', 'solar', 'bensin']) {
+                for (let kw of FUEL_KEYWORDS[jenis]) {
+                    // Word boundary check: cari keyword sebagai kata terpisah
+                    const regex = new RegExp(`(^|[^A-Z0-9])${kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^A-Z0-9]|$)`);
+                    if (regex.test(upper)) {
+                        return jenis.charAt(0).toUpperCase() + jenis.slice(1);
+                    }
+                }
+            }
+            return null;
+        }
+
+        function detectFuelByCC(cc, merk) {
+            if (cc === null || cc === 0) return null;
+            const region = getRegion(merk);
+            // CC >= 5000 → kemungkinan besar Solar (truk, alat berat)
+            if (cc >= 5000) return 'Solar';
+            // CC 2000-4999 → Asia: Solar, Eropa: Bensin
+            if (cc >= 2000 && cc < 5000) {
+                if (region === 'asia') return 'Solar';
+                if (region === 'europe') return 'Bensin';
+                return null;
+            }
+            // CC < 2000 → Bensin
+            if (cc < 2000) return 'Bensin';
+            return null;
+        }
+
+        function detectFuel(modelFisik, modelDok, ccForHeur, merk) {
+            // Prioritas 1: Keyword di Model Fisik
+            const fromFisik = detectFuelFromText(modelFisik);
+            if (fromFisik) return { fuel: fromFisik, sumber: 'Model Fisik' };
+
+            // Prioritas 2: Keyword di Model Dokumen
+            const fromDok = detectFuelFromText(modelDok);
+            if (fromDok) return { fuel: fromDok, sumber: 'Model Dokumen' };
+
+            // Prioritas 3: Heuristik CC + Merk
+            const fromCC = detectFuelByCC(ccForHeur, merk);
+            if (fromCC) return { fuel: fromCC, sumber: 'Heuristik CC' };
+
+            return { fuel: null, sumber: null };
+        }
+
+        // ============================================================
+        // 7. CEK TIPE — MURNI: Model Dokumen vs Model Fisik
+        // ============================================================
         function isTipeSamaMurni(modelDok, modelFisik) {
             if (!modelDok || !modelFisik) return false;
 
             const dok = modelDok.toUpperCase();
             const fisik = modelFisik.toUpperCase();
 
-            // Cek varian huruf (kalau ada di kedua sisi)
             const varianRegex = /\b\d+[.,]\d+\s+([A-Z])\b/;
             const varianDok = (dok.match(varianRegex) || [])[1];
             const varianFisik = (fisik.match(varianRegex) || [])[1];
@@ -542,7 +562,6 @@
                 return false;
             }
 
-            // Character matching dengan threshold 60%
             const dokClean = dok.replace(/\s/g, '');
             const fisikClean = fisik.replace(/\s/g, '');
             if (!dokClean || !fisikClean) return false;
@@ -565,7 +584,7 @@
         }
 
         // ============================================================
-        // 7. FUNGSI ANALISIS UTAMA
+        // 8. FUNGSI ANALISIS UTAMA
         // ============================================================
         function analyzeRow(row) {
             const merk = String(row['MERK'] || '').trim();
@@ -579,13 +598,13 @@
             const transDoc = String(row['TRANS.'] || row['TRANS'] || '').trim();
             const note1 = String(row['NOTE 1'] || '').trim();
             const lot = String(row['LOT'] || '').trim();
-            const fuelType = String(row['FUEL TYPE'] || '').trim();
+            const fuelTypeExcel = String(row['FUEL TYPE'] || '').trim();
 
             const region = getRegion(merk);
             const isAsia = region === 'asia';
 
             // ============================================================
-            // CEK TAHUN RANGKA (VIN digit ke-10)
+            // CEK TAHUN RANGKA
             // ============================================================
             let tahunRangka = null, kodeTahunVIN = null, statusVIN = 'unknown', mappingVIN = null;
             if (isAsia) {
@@ -604,21 +623,17 @@
             }
 
             // ============================================================
-            // CEK CC — Bandingkan CC Excel vs CC Model Fisik (INDEPENDEN dari Tipe)
+            // CEK CC — Excel vs Model Fisik
             // ============================================================
-            // Baca CC dari kolom 'CC' (AF). Nilai 0 / kosong / invalid → null
             const ccExcelRaw = row['CC'];
             let ccExcel = null;
             if (ccExcelRaw !== undefined && ccExcelRaw !== null && ccExcelRaw !== '') {
                 const parsed = parseInt(ccExcelRaw);
-                // Range wajar CC mobil: 600 - 9999 cc
-                // Nilai 0 atau di luar range dianggap tidak ada info
                 if (!isNaN(parsed) && parsed >= 600 && parsed <= 9999) {
                     ccExcel = parsed;
                 }
             }
 
-            // Ekstrak CC dari Model Fisik (misal "GRAN MAX 1.3" → 1300)
             const ccFisik = extractCC(modelFisik);
 
             let ccStatus = 'unknown';
@@ -627,26 +642,69 @@
             let ccSumber = '';
 
             if (ccExcel !== null && ccFisik !== null) {
-                // DUA-DUANYA ADA → bandingkan
                 ccSelisih = Math.abs(ccExcel - ccFisik);
                 ccStatus = ccSelisih <= 100 ? 'sama' : 'beda';
                 ccDisplay = `${ccFisik}cc`;
                 ccSumber = 'Excel vs Fisik';
             } else if (ccFisik !== null) {
-                // Hanya Fisik yang ada
                 ccStatus = 'partial';
                 ccDisplay = `${ccFisik}cc`;
                 ccSumber = 'Hanya Fisik';
             } else if (ccExcel !== null) {
-                // Hanya Excel yang ada
                 ccStatus = 'partial';
                 ccDisplay = `${ccExcel}cc`;
                 ccSumber = 'Hanya Excel';
             }
 
             // ============================================================
-            // CEK TIPE — MURNI: Model Dokumen vs Model Fisik
-            // (TIDAK dipengaruhi oleh CC sama sekali)
+            // CEK BAHAN BAKAR (FUEL TYPE) — Gabungan Opsi 1+2+4
+            // ============================================================
+            // Prioritas deteksi: Model Fisik → Model Dokumen → Heuristik CC+Merk
+            const ccForFuelHeur = ccFisik !== null ? ccFisik : ccExcel;
+            const fuelDetected = detectFuel(modelFisik, modelDok, ccForFuelHeur, merk);
+
+            // Normalisasi fuelTypeExcel
+            const fuelExcelNorm = fuelTypeExcel.trim();
+            let fuelExcelKategori = null;
+            if (fuelExcelNorm) {
+                const lower = fuelExcelNorm.toLowerCase();
+                if (lower.includes('bensin') || lower.includes('gasoline') || lower.includes('petrol')) fuelExcelKategori = 'Bensin';
+                else if (lower.includes('solar') || lower.includes('diesel')) fuelExcelKategori = 'Solar';
+                else if (lower.includes('listrik') || lower.includes('electric')) fuelExcelKategori = 'Listrik';
+                else if (lower.includes('hybrid')) fuelExcelKategori = 'Hybrid';
+                else if (lower.includes('lain')) fuelExcelKategori = 'Lain lain';
+            }
+
+            let fuelStatus = 'unknown';
+            let fuelDisplay = fuelExcelNorm || '—';
+            let fuelSelisih = null;
+
+            if (fuelExcelKategori !== null && fuelDetected.fuel !== null) {
+                // Dua-duanya ada → bandingkan
+                if (fuelExcelKategori === fuelDetected.fuel) {
+                    fuelStatus = 'sama';
+                } else {
+                    // Special case: "Lain lain" di Excel sering dianggap cocok dengan
+                    // apa saja (karena tidak spesifik) → anggap partial, bukan beda
+                    if (fuelExcelKategori === 'Lain lain') {
+                        fuelStatus = 'partial';
+                    } else {
+                        fuelStatus = 'beda';
+                    }
+                }
+                fuelDisplay = `${fuelExcelNorm}`;
+            } else if (fuelExcelKategori !== null) {
+                // Hanya Excel yang ada
+                fuelStatus = 'partial';
+                fuelDisplay = fuelExcelNorm;
+            } else if (fuelDetected.fuel !== null) {
+                // Hanya deteksi yang ada
+                fuelStatus = 'partial';
+                fuelDisplay = fuelDetected.fuel;
+            }
+
+            // ============================================================
+            // CEK TIPE — MURNI
             // ============================================================
             const tipeSama = isTipeSamaMurni(modelDok, modelFisik);
 
@@ -674,15 +732,17 @@
                 anomali = true;
                 reasons.push(`Tahun mismatch (${tahun} vs ${tahunRangka})`);
             }
-            // Tipe Beda (murni, tidak dipengaruhi CC)
             if (!tipeSama && modelDok && modelFisik) {
                 anomali = true;
                 reasons.push('Tipe berbeda');
             }
-            // CC Beda (independen, hanya kalau dua-duanya ada)
             if (ccStatus === 'beda') {
                 anomali = true;
                 reasons.push(`CC beda (Excel ${ccExcel}cc vs Fisik ${ccFisik}cc)`);
+            }
+            if (fuelStatus === 'beda') {
+                anomali = true;
+                reasons.push(`BBM beda (Excel ${fuelExcelKategori} vs ${fuelDetected.fuel})`);
             }
             if (!namaSama && namaSTNK && namaBPKB) {
                 anomali = true;
@@ -701,13 +761,15 @@
                 lot, merk, modelDok, modelFisik, tahun, noRangka, nopol, namaSTNK, namaBPKB, transDoc, note1,
                 region, isAsia, tahunRangka, kodeTahunVIN, statusVIN, mappingVIN, tahunValid, tahunMismatch,
                 tipeSama, namaSama, namaKosong, anPT, transResult, transSama, transDetail, anomali,
-                ccExcel, ccFisik, ccStatus, ccSelisih, ccDisplay, ccSumber, fuelType,
+                ccExcel, ccFisik, ccStatus, ccSelisih, ccDisplay, ccSumber,
+                fuelExcel: fuelExcelNorm, fuelExcelKategori, fuelDetected: fuelDetected.fuel,
+                fuelDetectedSumber: fuelDetected.sumber, fuelStatus, fuelDisplay, fuelSelisih,
                 reasons: reasons.join('; ')
             };
         }
 
         // ============================================================
-        // 8. PROSES EXCEL
+        // 9. PROSES EXCEL
         // ============================================================
         function processExcelData(jsonData) {
             if (!jsonData || jsonData.length < 2) {
@@ -738,23 +800,25 @@
             totalRows.textContent = allData.length;
             anomaliCount.textContent = allData.filter(d => d.anomali).length;
             transBedaCount.textContent = allData.filter(d => d.transResult.status === 'beda').length;
+            fuelBedaCount.textContent = allData.filter(d => d.fuelStatus === 'beda').length;
             asiaCount.textContent = allData.filter(d => d.isAsia).length;
         }
 
         // ============================================================
-        // 9. FILTER & SORTING (SEVERITY-BASED)
+        // 10. FILTER & SORTING
         // ============================================================
         function applyFilters() {
             const q = searchInput.value.toLowerCase().trim();
             const status = statusFilter.value;
             const region = regionFilter.value;
+            const fuel = fuelFilter.value;
             const trans = transFilter.value;
             const tahun = tahunFilter.value;
             const nopolQ = activeNopolQuery;
 
             filteredData = allData.filter(d => {
                 if (q) {
-                    const hay = `${d.merk} ${d.modelDok} ${d.modelFisik} ${d.namaSTNK} ${d.namaBPKB} ${d.nopol} ${d.noRangka} ${d.note1} ${d.lot}`.toLowerCase();
+                    const hay = `${d.merk} ${d.modelDok} ${d.modelFisik} ${d.namaSTNK} ${d.namaBPKB} ${d.nopol} ${d.noRangka} ${d.note1} ${d.lot} ${d.fuelExcel}`.toLowerCase();
                     if (!hay.includes(q)) return false;
                 }
                 if (nopolQ) {
@@ -766,6 +830,9 @@
                 if (status === 'anomali' && !d.anomali) return false;
                 if (region === 'asia' && !d.isAsia) return false;
                 if (region === 'nonasia' && d.isAsia) return false;
+                if (fuel === 'sama' && d.fuelStatus !== 'sama') return false;
+                if (fuel === 'beda' && d.fuelStatus !== 'beda') return false;
+                if (fuel === 'unknown' && d.fuelStatus !== 'unknown') return false;
                 if (trans === 'sama' && d.transResult.status !== 'sama') return false;
                 if (trans === 'beda' && d.transResult.status !== 'beda') return false;
                 if (tahun === 'valid' && !d.tahunValid) return false;
@@ -798,48 +865,44 @@
             renderTable();
         }
 
-        // ============================================================
-        // SEVERITY SCORE — Semakin tinggi = semakin bermasalah (naik ke atas)
-        // ============================================================
         function getSeverityScore(item, key) {
             switch (key) {
-                // CC: Beda=3 > Partial=2 > Sama=1 > Unknown=0
                 case 'ccInfo':
                     if (item.ccStatus === 'beda') return 3;
                     if (item.ccStatus === 'partial') return 2;
                     if (item.ccStatus === 'sama') return 1;
                     return 0;
 
-                // Tipe Sama (MURNI — hanya lihat tipe, tidak lihat CC):
-                // Beda=2 > Sama=1 > Unknown=0
+                // BBM: Beda=3 > Partial=2 > Sama=1 > Unknown=0
+                case 'fuelInfo':
+                    if (item.fuelStatus === 'beda') return 3;
+                    if (item.fuelStatus === 'partial') return 2;
+                    if (item.fuelStatus === 'sama') return 1;
+                    return 0;
+
                 case 'tipeSama':
                     if (!item.tipeSama) return 2;
                     return 1;
 
-                // Tahun Rangka: Mismatch=3 > Valid=2 > Unknown=1 > Non-Asia=0
                 case 'tahunRangka':
                     if (item.tahunMismatch) return 3;
                     if (item.tahunValid && item.isAsia) return 2;
                     if (item.statusVIN === 'unknown' && item.isAsia) return 1;
                     return 0;
 
-                // Transmisi: Beda=2 > Sama=1 > Unknown=0
                 case 'transmisi':
                     if (item.transResult.status === 'beda') return 2;
                     if (item.transResult.status === 'sama') return 1;
                     return 0;
 
-                // Nama Sama: Beda=2 > Sama=1 > Kosong=0
                 case 'namaSama':
                     if (!item.namaSama && !item.namaKosong) return 2;
                     if (item.namaSama && !item.namaKosong) return 1;
                     return 0;
 
-                // AN PT: PT=1 > bukan PT=0
                 case 'anPT':
                     return item.anPT ? 1 : 0;
 
-                // Region: Other=2 > Asia=1 > Eropa=0
                 case 'region':
                     if (item.region === 'other') return 2;
                     if (item.region === 'asia') return 1;
@@ -852,25 +915,22 @@
         }
 
         function isSeverityColumn(key) {
-            return ['ccInfo', 'tipeSama', 'tahunRangka', 'transmisi', 'namaSama', 'anPT', 'region'].includes(key);
+            return ['ccInfo', 'fuelInfo', 'tipeSama', 'tahunRangka', 'transmisi', 'namaSama', 'anPT', 'region'].includes(key);
         }
 
         function sortData() {
             const key = sortKey;
 
             if (isSeverityColumn(key)) {
-                // SEVERITY MODE: yang bermasalah selalu di atas, klik berkali-kali tetap sama
                 filteredData.sort((a, b) => {
                     const sevA = getSeverityScore(a, key);
                     const sevB = getSeverityScore(b, key);
-                    if (sevA !== sevB) return sevB - sevA; // Descending
-                    // Secondary: LOT (numeric)
+                    if (sevA !== sevB) return sevB - sevA;
                     return (a.lot || '').localeCompare(b.lot || '', undefined, { numeric: true });
                 });
                 return;
             }
 
-            // ALFABETIS MODE untuk kolom non-severity
             filteredData.sort((a, b) => {
                 let va, vb;
                 switch (key) {
@@ -896,7 +956,7 @@
         }
 
         // ============================================================
-        // 10. RENDER TABLE
+        // 11. RENDER TABLE
         // ============================================================
         function renderTable() {
             const total = filteredData.length;
@@ -907,7 +967,7 @@
             const pageData = filteredData.slice(start, end);
 
             if (total === 0) {
-                tableBody.innerHTML = `<tr><td colspan="16" class="empty-state">
+                tableBody.innerHTML = `<tr><td colspan="17" class="empty-state">
                     <span class="icon">🔍</span>Tidak ada data yang cocok dengan filter.
                 </td></tr>`;
                 pageInfo.textContent = 'Halaman 0 dari 0';
@@ -937,12 +997,11 @@
                     else if (nopolNorm.includes(nopolQNorm)) priorityLabel = '<span class="priority-label">🔍 COCOK</span>';
                 }
 
-                // ---- Tipe Sama Badge (MURNI — hanya dari modelDok vs modelFisik) ----
                 const tipeBadge = d.tipeSama
                     ? '<span class="badge badge-success">✅ Sama</span>'
                     : '<span class="badge badge-danger">❌ Beda</span>';
 
-                // ---- Badge CC (INDEPENDEN dari Tipe) ----
+                // ---- Badge CC ----
                 let ccHtml;
                 if (d.ccStatus === 'sama') {
                     const selisihInfo = d.ccSelisih > 0 ? ` (Δ${d.ccSelisih})` : '';
@@ -953,6 +1012,19 @@
                     ccHtml = `<span class="badge badge-warning" title="${d.ccSumber}">⚠️ ${d.ccDisplay}</span>`;
                 } else {
                     ccHtml = '<span class="badge badge-unknown">—</span>';
+                }
+
+                // ---- Badge BBM ----
+                let fuelHtml;
+                if (d.fuelStatus === 'sama') {
+                    fuelHtml = `<span class="badge badge-success" title="Excel: ${d.fuelExcel} | Deteksi: ${d.fuelDetected} (${d.fuelDetectedSumber})">✅ ${d.fuelDisplay}</span>`;
+                } else if (d.fuelStatus === 'beda') {
+                    fuelHtml = `<span class="badge badge-danger" title="Excel: ${d.fuelExcel} | Deteksi: ${d.fuelDetected} (${d.fuelDetectedSumber})">❌ ${d.fuelExcelKategori}≠${d.fuelDetected}</span>`;
+                } else if (d.fuelStatus === 'partial') {
+                    const src = d.fuelDetectedSumber ? ` (${d.fuelDetectedSumber})` : '';
+                    fuelHtml = `<span class="badge badge-warning" title="${src.trim()}">⚠️ ${d.fuelDisplay}</span>`;
+                } else {
+                    fuelHtml = '<span class="badge badge-unknown">—</span>';
                 }
 
                 let tahunRangkaHtml;
@@ -999,6 +1071,7 @@
                     <td>${escapeHtml(d.modelDok) || '-'}</td>
                     <td>${escapeHtml(d.modelFisik) || '-'}</td>
                     <td>${ccHtml}</td>
+                    <td>${fuelHtml}</td>
                     <td>${tipeBadge}</td>
                     <td>${d.tahun || '-'}</td>
                     <td>${tahunRangkaHtml}</td>
@@ -1016,7 +1089,6 @@
             prevPageBtn.disabled = currentPage <= 1;
             nextPageBtn.disabled = currentPage >= totalPages;
 
-            // Update indikator sorting di header
             document.querySelectorAll('th[data-sort]').forEach(th => {
                 const indicator = th.querySelector('.sort-indicator');
                 th.classList.remove('sort-active', 'sort-severity');
@@ -1042,20 +1114,19 @@
         }
 
         // ============================================================
-        // 11. EVENT LISTENERS
+        // 12. EVENT LISTENERS
         // ============================================================
         tableHead.addEventListener('click', function(e) {
             const th = e.target.closest('th[data-sort]');
             if (!th) return;
-            const key = th.dataset.sort;
-            // Klik berkali-kali tetap sama (severity mode untuk kolom severity)
-            sortKey = key;
+            sortKey = th.dataset.sort;
             applyFilters();
         });
 
         searchInput.addEventListener('input', applyFilters);
         statusFilter.addEventListener('change', applyFilters);
         regionFilter.addEventListener('change', applyFilters);
+        fuelFilter.addEventListener('change', applyFilters);
         transFilter.addEventListener('change', applyFilters);
         tahunFilter.addEventListener('change', applyFilters);
 
